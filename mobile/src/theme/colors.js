@@ -7,5 +7,9 @@ export const colors = {
   brand: "#1d4ed8",
   brandSoft: "#dbeafe",
   success: "#0f766e",
-  warm: "#fff4db"
+  warm: "#fff4db",
+  cream: "#fff8ee",
+  mint: "#dff7e8",
+  tomato: "#ea580c",
+  tomatoSoft: "#ffd6c2"
 };
