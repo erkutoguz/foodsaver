@@ -1,7 +1,22 @@
 import { InventoryItem } from "../models/inventory-item.model.js";
 
+function escapeRegex(value) {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export function findInventoryItemsByUserId(userId, sort = { createdAt: -1 }) {
   return InventoryItem.find({ userId }).sort(sort);
+}
+
+export function findInventoryItemByUserIdNameAndUnit(userId, name, unit) {
+  return InventoryItem.findOne({
+    userId,
+    unit,
+    name: {
+      $regex: `^${escapeRegex(name)}$`,
+      $options: "i"
+    }
+  });
 }
 
 export function createInventoryItemRecord(payload) {

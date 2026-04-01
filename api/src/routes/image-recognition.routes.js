@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
-import { analyzeImage } from "../services/image-recognition.service.js";
-import { analyzeImageSchema } from "../validators/image-recognition.schemas.js";
+import { analyzeImage, confirmDetectedItems } from "../services/image-recognition.service.js";
+import { analyzeImageSchema, confirmDetectedItemsSchema } from "../validators/image-recognition.schemas.js";
 
 const imageRecognitionRouter = Router();
 
@@ -12,6 +12,15 @@ imageRecognitionRouter.post("/analyze", validate(analyzeImageSchema), async (req
   try {
     const result = await analyzeImage(request.user._id, request.body);
     response.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+imageRecognitionRouter.post("/confirm", validate(confirmDetectedItemsSchema), async (request, response, next) => {
+  try {
+    const result = await confirmDetectedItems(request.user._id, request.body);
+    response.status(201).json(result);
   } catch (error) {
     next(error);
   }

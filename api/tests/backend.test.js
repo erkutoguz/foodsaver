@@ -480,6 +480,75 @@ describe("backend", () => {
     expect(response.body.analysis.detectedItems[0].name).toBe("Tomato");
   });
 
+  it("confirms detected items and saves them into inventory", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "image-confirm@example.com"
+    });
+
+    const analyzeResponse = await request(app)
+      .post("/api/image-recognition/analyze")
+      .set("Authorization", session.authHeader)
+      .send({
+        imageUrl: "https://example.com/uploads/milk-eggs.jpg"
+      });
+
+    const response = await request(app)
+      .post("/api/image-recognition/confirm")
+      .set("Authorization", session.authHeader)
+      .send({
+        items: analyzeResponse.body.analysis.detectedItems.slice(0, 2)
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.summary.processedCount).toBe(2);
+    expect(response.body.summary.createdCount).toBe(2);
+    expect(response.body.summary.mergedCount).toBe(0);
+    expect(response.body.savedItems[0].action).toBe("created");
+
+    const inventoryResponse = await request(app).get("/api/inventory").set("Authorization", session.authHeader);
+
+    expect(inventoryResponse.status).toBe(200);
+    expect(inventoryResponse.body.items).toHaveLength(2);
+    expect(inventoryResponse.body.items.map((item) => item.name)).toEqual(expect.arrayContaining(["Milk", "Egg"]));
+  });
+
+  it("merges confirmed items with an existing inventory record", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "image-confirm-merge@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Milk",
+      quantity: 1,
+      unit: "piece",
+      category: "dairy"
+    });
+
+    const response = await request(app)
+      .post("/api/image-recognition/confirm")
+      .set("Authorization", session.authHeader)
+      .send({
+        items: [
+          {
+            name: "milk",
+            quantity: 2,
+            unit: "piece",
+            category: "dairy"
+          }
+        ]
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.summary.createdCount).toBe(0);
+    expect(response.body.summary.mergedCount).toBe(1);
+    expect(response.body.savedItems[0].action).toBe("merged");
+    expect(response.body.savedItems[0].quantity).toBe(3);
+
+    const itemsInDatabase = await InventoryItem.find({ userId: session.user.id });
+    expect(itemsInDatabase).toHaveLength(1);
+    expect(itemsInDatabase[0].quantity).toBe(3);
+  });
+
   it("returns validation error when image recognition input is missing", async () => {
     const session = await registerAndGetAuthHeader({
       email: "image-recognition-validation@example.com"
@@ -496,9 +565,40 @@ describe("backend", () => {
     expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 
+  it("returns validation error for bad image confirmation payload", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "image-confirm-validation@example.com"
+    });
+
+    const response = await request(app)
+      .post("/api/image-recognition/confirm")
+      .set("Authorization", session.authHeader)
+      .send({
+        items: []
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
   it("rejects image recognition requests without token", async () => {
     const response = await request(app).post("/api/image-recognition/analyze").send({
       fileName: "eggs.jpg"
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_REQUIRED");
+  });
+
+  it("rejects image confirmation requests without token", async () => {
+    const response = await request(app).post("/api/image-recognition/confirm").send({
+      items: [
+        {
+          name: "Milk",
+          quantity: 1,
+          unit: "piece"
+        }
+      ]
     });
 
     expect(response.status).toBe(401);

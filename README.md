@@ -414,6 +414,60 @@ Request body:
 }
 ```
 
+### `POST /api/image-recognition/confirm`
+
+Saves selected detected items into inventory.
+
+Behavior:
+- if the same `name + unit` already exists for the user, quantity is merged
+- otherwise a new inventory item is created
+
+Request body:
+
+```json
+{
+  "items": [
+    {
+      "name": "Milk",
+      "quantity": 1,
+      "unit": "piece",
+      "category": "dairy"
+    },
+    {
+      "name": "Egg",
+      "quantity": 6,
+      "unit": "piece",
+      "category": "protein"
+    }
+  ]
+}
+```
+
+Response `201`:
+
+```json
+{
+  "savedItems": [
+    {
+      "id": "680000000000000000000050",
+      "name": "Milk",
+      "quantity": 3,
+      "unit": "piece",
+      "category": "dairy",
+      "expiresAt": null,
+      "action": "merged",
+      "createdAt": "2026-04-01T12:00:00.000Z",
+      "updatedAt": "2026-04-01T12:05:00.000Z"
+    }
+  ],
+  "summary": {
+    "processedCount": 1,
+    "createdCount": 0,
+    "mergedCount": 1
+  }
+}
+```
+
 You can also send `fileName` or `imageBase64` instead of `imageUrl`.
 
 Response `200`:
@@ -735,6 +789,9 @@ Important validation rules currently in place:
   - `prompt` is required
 - Image recognition analyze:
   - at least one of `imageUrl`, `fileName`, or `imageBase64` is required
+- Image recognition confirm:
+  - `items` must contain at least one detected item
+  - `name`, `quantity`, and `unit` are required for each item
 - Favorite create:
   - `recipeId` must be a valid Mongo ObjectId
 
