@@ -1,6 +1,8 @@
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useAuthStore } from "../store/auth-store";
 import { colors } from "../theme/colors";
 import { AuthScreen } from "../screens/AuthScreen";
 import { HomeScreen } from "../screens/HomeScreen";
@@ -11,6 +13,14 @@ import { RecipesScreen } from "../screens/RecipesScreen";
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+function AuthLoadingScreen() {
+  return (
+    <View style={styles.loadingScreen}>
+      <ActivityIndicator size="large" color={colors.brand} />
+    </View>
+  );
+}
 
 function MainTabs() {
   return (
@@ -46,7 +56,13 @@ function MainTabs() {
 }
 
 export function AppNavigator() {
-  const isAuthenticated = false;
+  const token = useAuthStore((state) => state.token);
+  const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const isAuthenticated = Boolean(token);
+
+  if (!hasHydrated) {
+    return <AuthLoadingScreen />;
+  }
 
   return (
     <NavigationContainer
@@ -99,3 +115,12 @@ export function AppNavigator() {
     </NavigationContainer>
   );
 }
+
+const styles = StyleSheet.create({
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: colors.paper,
+    alignItems: "center",
+    justifyContent: "center"
+  }
+});
