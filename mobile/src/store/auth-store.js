@@ -84,6 +84,13 @@ export const useAuthStore = create(
         set({ user });
       },
 
+      logout: () => {
+        set({
+          token: null,
+          user: null
+        });
+      },
+
       clearSession: () => {
         set({
           token: null,

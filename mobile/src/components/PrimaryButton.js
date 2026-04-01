@@ -44,7 +44,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.brand
   },
   buttonSecondary: {
-    backgroundColor: "#ffffff"
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: colors.line
   },
   buttonPressed: {
     opacity: 0.88

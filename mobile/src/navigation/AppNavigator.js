@@ -1,6 +1,7 @@
 import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useEffect, useRef } from "react";
 import { useAuthStore } from "../store/auth-store";
@@ -26,7 +27,7 @@ function AuthLoadingScreen() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={{
+      screenOptions={({ route }) => ({
         headerStyle: {
           backgroundColor: "#ffffff"
         },
@@ -36,22 +37,62 @@ function MainTabs() {
           fontWeight: "700"
         },
         tabBarStyle: {
-          height: 64,
+          height: 68,
           paddingBottom: 8,
-          paddingTop: 8
+          paddingTop: 8,
+          borderTopWidth: 1,
+          borderTopColor: colors.line
         },
         tabBarActiveTintColor: colors.brand,
         tabBarInactiveTintColor: colors.slate,
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: "700"
+        },
+        tabBarIcon: ({ color, size, focused }) => {
+          const iconMap = {
+            Home: focused ? "home" : "home-outline",
+            Pantry: focused ? "basket" : "basket-outline",
+            Recipes: focused ? "restaurant" : "restaurant-outline",
+            Profile: focused ? "person-circle" : "person-circle-outline"
+          };
+
+          return <Ionicons name={iconMap[route.name]} size={size} color={color} />;
         }
-      }}
+      })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Inventory" component={InventoryScreen} />
-      <Tab.Screen name="Recipes" component={RecipesScreen} />
-      <Tab.Screen name="More" component={ProfileScreen} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{
+          title: "Home",
+          tabBarLabel: "Home"
+        }}
+      />
+      <Tab.Screen
+        name="Pantry"
+        component={InventoryScreen}
+        options={{
+          title: "Pantry",
+          tabBarLabel: "Pantry"
+        }}
+      />
+      <Tab.Screen
+        name="Recipes"
+        component={RecipesScreen}
+        options={{
+          title: "Recipes",
+          tabBarLabel: "Recipes"
+        }}
+      />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: "Profile",
+          tabBarLabel: "Profile"
+        }}
+      />
     </Tab.Navigator>
   );
 }
