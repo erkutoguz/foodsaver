@@ -1,8 +1,13 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
+import { FormField } from "../components/FormField";
 import { InfoCard } from "../components/InfoCard";
+import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenShell } from "../components/ScreenShell";
-import { getInventoryRequest } from "../services/inventory-service";
+import {
+  createInventoryRequest,
+  getInventoryRequest
+} from "../services/inventory-service";
 import { useAuthStore } from "../store/auth-store";
 import { colors } from "../theme/colors";
 
@@ -11,6 +16,13 @@ export function InventoryScreen() {
   const [items, setItems] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const [name, setName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState("piece");
+  const [category, setCategory] = useState("");
+  const [expiresAt, setExpiresAt] = useState("");
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function loadInventory() {
     if (!token) {
@@ -32,6 +44,57 @@ export function InventoryScreen() {
     }
   }
 
+  async function handleCreateItem() {
+    const trimmedName = name.trim();
+    const trimmedCategory = category.trim();
+    const trimmedExpiresAt = expiresAt.trim();
+    const parsedQuantity = Number(quantity);
+
+    if (!trimmedName) {
+      setFormError("Please enter an item name.");
+      return;
+    }
+
+    if (!quantity || Number.isNaN(parsedQuantity) || parsedQuantity <= 0) {
+      setFormError("Please enter a valid quantity.");
+      return;
+    }
+
+    if (trimmedExpiresAt && Number.isNaN(new Date(trimmedExpiresAt).getTime())) {
+      setFormError("Expiration date should look like 2026-04-20.");
+      return;
+    }
+
+    if (!token) {
+      setFormError("You need to be signed in.");
+      return;
+    }
+
+    setFormError("");
+    setIsSubmitting(true);
+
+    try {
+      await createInventoryRequest(token, {
+        name: trimmedName,
+        quantity: parsedQuantity,
+        unit,
+        category: trimmedCategory || undefined,
+        expiresAt: trimmedExpiresAt || undefined
+      });
+
+      setName("");
+      setQuantity("");
+      setUnit("piece");
+      setCategory("");
+      setExpiresAt("");
+      await loadInventory();
+    } catch (error) {
+      setFormError(error.message || "Could not add the item.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   useEffect(() => {
     loadInventory();
   }, [token]);
@@ -43,6 +106,85 @@ export function InventoryScreen() {
       title="Inventory"
       description="You will see, edit, and track the expiration dates of your kitchen items here."
     >
+      <InfoCard title="Add pantry item">
+        <View style={styles.formList}>
+          <FormField
+            label="Item name"
+            value={name}
+            onChangeText={setName}
+            placeholder="Tomato"
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+
+          <View style={styles.formRow}>
+            <View style={styles.formCol}>
+              <FormField
+                label="Quantity"
+                value={quantity}
+                onChangeText={setQuantity}
+                placeholder="2"
+                keyboardType="numeric"
+                returnKeyType="next"
+              />
+            </View>
+
+            <View style={styles.formCol}>
+              <Text style={styles.fieldLabel}>Unit</Text>
+              <View style={styles.unitRow}>
+                {["piece", "gram", "ml"].map((unitOption) => (
+                  <Pressable
+                    key={unitOption}
+                    onPress={() => setUnit(unitOption)}
+                    style={[
+                      styles.unitChip,
+                      unit === unitOption && styles.unitChipActive
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.unitChipText,
+                        unit === unitOption && styles.unitChipTextActive
+                      ]}
+                    >
+                      {unitOption}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <FormField
+            label="Category"
+            value={category}
+            onChangeText={setCategory}
+            placeholder="Vegetables"
+            autoCapitalize="words"
+            returnKeyType="next"
+          />
+
+          <FormField
+            label="Expiration date"
+            value={expiresAt}
+            onChangeText={setExpiresAt}
+            placeholder="2026-04-20"
+            autoCapitalize="none"
+            returnKeyType="done"
+            onSubmitEditing={handleCreateItem}
+          />
+        </View>
+
+        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+
+        <PrimaryButton
+          label="Add item"
+          onPress={handleCreateItem}
+          loading={isSubmitting}
+          disabled={isSubmitting}
+        />
+      </InfoCard>
+
       {isLoading ? (
         <View style={styles.stateBox}>
           <ActivityIndicator size="large" color={colors.brand} />
@@ -93,7 +235,7 @@ export function InventoryScreen() {
                     </View>
                   </View>
 
-                  <Text style={styles.itemMeta}>Ready to use in your next recipe flow</Text>
+                  <Text style={styles.itemMeta}>Tracked in your pantry</Text>
                 </View>
 
                 <View style={[styles.statusBadge, getStatusStyle(item.expirationStatus)]}>
@@ -156,6 +298,50 @@ function formatDate(value) {
 }
 
 const styles = StyleSheet.create({
+  formList: {
+    gap: 14
+  },
+  formRow: {
+    gap: 12
+  },
+  formCol: {
+    gap: 8
+  },
+  fieldLabel: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  unitRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  unitChip: {
+    borderRadius: 999,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: colors.line,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  unitChipActive: {
+    backgroundColor: colors.brandSoft,
+    borderColor: "#93c5fd"
+  },
+  unitChipText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  unitChipTextActive: {
+    color: colors.brand
+  },
+  formError: {
+    color: colors.tomato,
+    fontSize: 13,
+    lineHeight: 20
+  },
   stateBox: {
     alignItems: "center",
     justifyContent: "center",

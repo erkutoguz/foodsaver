@@ -6,10 +6,10 @@ export function RecipesScreen() {
     <ScreenShell
       eyebrow="RECIPES"
       title="Recipes"
-      description="This is where we will build recipe generation and the recipe detail flow based on your ingredients."
+      description="Discover recipe ideas that fit the ingredients already sitting in your pantry."
     >
-      <InfoCard title="What will be here">
-        Recipe generation, job results, favorites, and the cook flow will come together here.
+      <InfoCard title="Recipe space">
+        Build your pantry first, then come here to generate ideas, save favorites, and decide what to cook next.
       </InfoCard>
     </ScreenShell>
   );

@@ -22,7 +22,7 @@ export function ProfileScreen() {
       scrollable
       eyebrow="PROFILE"
       title={`Hi, ${firstName}`}
-      description="Your account details and session actions live here. We will add favorites and history to this area next."
+      description="Your account details and session actions live here."
     >
       <View style={styles.topChips}>
         <View style={styles.chip}>
@@ -46,7 +46,7 @@ export function ProfileScreen() {
         </View>
       </InfoCard>
 
-      <InfoCard title="What is coming here">
+      <InfoCard title="Account space">
         <View style={styles.list}>
           <Text style={styles.item}>- Favorite recipes</Text>
           <Text style={styles.item}>- Cooking history</Text>

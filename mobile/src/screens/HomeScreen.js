@@ -12,7 +12,7 @@ export function HomeScreen() {
     <ScreenShell
       eyebrow="TODAY"
       title={`Welcome back, ${firstName}`}
-      description="Your pantry, recipe ideas, and the items that need attention today will come together here."
+      description="Keep an eye on your pantry, jump into recipe ideas, and stay close to the ingredients that matter today."
     >
       <View style={styles.quickRow}>
         <View style={styles.quickCard}>
@@ -26,7 +26,7 @@ export function HomeScreen() {
         </View>
       </View>
 
-      <InfoCard title="What you will see here">
+      <InfoCard title="Kitchen rhythm">
         <View style={styles.list}>
           <Text style={styles.item}>- Remaining item summary</Text>
           <Text style={styles.item}>- Short list of expiring items</Text>
@@ -34,8 +34,8 @@ export function HomeScreen() {
         </View>
       </InfoCard>
 
-      <InfoCard title="Your next step" tone="accent">
-        Add a few pantry items first, then the recipe tab can start feeling much more alive.
+      <InfoCard title="Stay organized" tone="accent">
+        Keep your pantry up to date and the rest of the app becomes much more useful right away.
       </InfoCard>
     </ScreenShell>
   );
