@@ -37,23 +37,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper
   },
   container: {
-    padding: 20,
-    gap: 18
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    gap: 16
   },
   containerFill: {
     flex: 1
   },
   containerScrollable: {
-    paddingBottom: 28
+    paddingBottom: 34
   },
   scrollContent: {
     flexGrow: 1
   },
   hero: {
     backgroundColor: colors.ink,
-    borderRadius: 24,
-    padding: 20,
-    gap: 8
+    borderRadius: 22,
+    padding: 18,
+    gap: 10
   },
   eyebrow: {
     color: "#bfd5ff",
@@ -63,15 +64,16 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "#ffffff",
-    fontSize: 28,
+    fontSize: 27,
+    lineHeight: 33,
     fontWeight: "800"
   },
   description: {
     color: "#d7e0ea",
     fontSize: 14,
-    lineHeight: 21
+    lineHeight: 20
   },
   content: {
-    gap: 14
+    gap: 12
   }
 });

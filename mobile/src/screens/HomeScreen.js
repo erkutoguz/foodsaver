@@ -14,6 +14,18 @@ export function HomeScreen() {
       title={`Welcome back, ${firstName}`}
       description="Your pantry, recipe ideas, and the items that need attention today will come together here."
     >
+      <View style={styles.quickRow}>
+        <View style={styles.quickCard}>
+          <Text style={styles.quickValue}>Pantry</Text>
+          <Text style={styles.quickLabel}>Track ingredients and expiration dates</Text>
+        </View>
+
+        <View style={[styles.quickCard, styles.quickCardAccent]}>
+          <Text style={styles.quickValue}>Recipes</Text>
+          <Text style={styles.quickLabel}>Turn what you have into meal ideas</Text>
+        </View>
+      </View>
+
       <InfoCard title="What you will see here">
         <View style={styles.list}>
           <Text style={styles.item}>- Remaining item summary</Text>
@@ -30,6 +42,30 @@ export function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  quickRow: {
+    gap: 10
+  },
+  quickCard: {
+    borderRadius: 18,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 16,
+    gap: 4
+  },
+  quickCardAccent: {
+    backgroundColor: colors.brandSoft
+  },
+  quickValue: {
+    color: colors.ink,
+    fontSize: 18,
+    fontWeight: "800"
+  },
+  quickLabel: {
+    color: colors.slate,
+    fontSize: 13,
+    lineHeight: 19
+  },
   list: {
     gap: 8
   },

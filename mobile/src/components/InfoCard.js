@@ -13,9 +13,9 @@ export function InfoCard({ title, children, tone = "default" }) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
-    borderRadius: 20,
-    padding: 16,
-    gap: 10,
+    borderRadius: 18,
+    padding: 18,
+    gap: 12,
     borderWidth: 1,
     borderColor: colors.line
   },
@@ -25,12 +25,12 @@ const styles = StyleSheet.create({
   },
   cardTitle: {
     color: colors.ink,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "700"
   },
   cardText: {
     color: colors.slate,
     fontSize: 14,
-    lineHeight: 21
+    lineHeight: 20
   }
 });

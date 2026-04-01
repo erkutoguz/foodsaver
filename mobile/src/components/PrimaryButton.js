@@ -36,8 +36,8 @@ export function PrimaryButton({
 
 const styles = StyleSheet.create({
   button: {
-    minHeight: 54,
-    borderRadius: 18,
+    minHeight: 52,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 18,
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
   },
   label: {
     color: "#ffffff",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "700"
   },
   labelSecondary: {

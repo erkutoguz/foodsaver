@@ -24,6 +24,15 @@ export function ProfileScreen() {
       title={`Hi, ${firstName}`}
       description="Your account details and session actions live here. We will add favorites and history to this area next."
     >
+      <View style={styles.topChips}>
+        <View style={styles.chip}>
+          <Text style={styles.chipText}>Signed in</Text>
+        </View>
+        <View style={[styles.chip, styles.chipSoft]}>
+          <Text style={styles.chipTextDark}>Account ready</Text>
+        </View>
+      </View>
+
       <InfoCard title="Your account">
         <View style={styles.profileRow}>
           <View style={styles.avatar}>
@@ -55,6 +64,30 @@ export function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  topChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  chip: {
+    borderRadius: 999,
+    backgroundColor: colors.ink,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  chipSoft: {
+    backgroundColor: colors.brandSoft
+  },
+  chipText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  chipTextDark: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: "700"
+  },
   profileRow: {
     flexDirection: "row",
     alignItems: "center",

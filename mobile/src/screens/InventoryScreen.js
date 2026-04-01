@@ -70,14 +70,30 @@ export function InventoryScreen() {
 
       {!isLoading && !errorMessage && items.length > 0 ? (
         <View style={styles.list}>
+          <View style={styles.summaryRow}>
+            <View style={styles.summaryPill}>
+              <Text style={styles.summaryPillText}>{items.length} items</Text>
+            </View>
+
+            <Pressable onPress={loadInventory} style={styles.summaryButton}>
+              <Text style={styles.summaryButtonText}>Refresh</Text>
+            </Pressable>
+          </View>
+
           {items.map((item) => (
             <View key={item.id} style={styles.card}>
               <View style={styles.cardTop}>
                 <View style={styles.cardMain}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemMeta}>
-                    {item.quantity} {item.unit}
-                  </Text>
+                  <View style={styles.itemNameRow}>
+                    <Text style={styles.itemName}>{item.name}</Text>
+                    <View style={styles.amountPill}>
+                      <Text style={styles.amountPillText}>
+                        {item.quantity} {item.unit}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <Text style={styles.itemMeta}>Ready to use in your next recipe flow</Text>
                 </View>
 
                 <View style={[styles.statusBadge, getStatusStyle(item.expirationStatus)]}>
@@ -86,14 +102,18 @@ export function InventoryScreen() {
               </View>
 
               <View style={styles.cardBottom}>
-                <Text style={styles.bottomText}>
-                  Category: {item.category || "Not set"}
-                </Text>
-                <Text style={styles.bottomText}>
-                  {item.expiresAt
-                    ? `Expires: ${formatDate(item.expiresAt)}`
-                    : "No expiration date"}
-                </Text>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Category</Text>
+                  <Text style={styles.bottomText}>{item.category || "Not set"}</Text>
+                </View>
+                <View style={styles.detailRow}>
+                  <Text style={styles.detailLabel}>Expiration</Text>
+                  <Text style={styles.bottomText}>
+                    {item.expiresAt
+                      ? formatDate(item.expiresAt)
+                      : "No expiration date"}
+                  </Text>
+                </View>
               </View>
             </View>
           ))}
@@ -183,12 +203,42 @@ const styles = StyleSheet.create({
   list: {
     gap: 12
   },
-  card: {
-    borderRadius: 22,
+  summaryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 10
+  },
+  summaryPill: {
+    borderRadius: 999,
+    backgroundColor: colors.brandSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  summaryPillText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  summaryButton: {
+    borderRadius: 999,
     backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  summaryButtonText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  card: {
+    borderRadius: 20,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: colors.line,
+    padding: 18,
     gap: 12
   },
   cardTop: {
@@ -199,7 +249,10 @@ const styles = StyleSheet.create({
   },
   cardMain: {
     flex: 1,
-    gap: 4
+    gap: 8
+  },
+  itemNameRow: {
+    gap: 8
   },
   itemName: {
     color: colors.ink,
@@ -207,10 +260,22 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textTransform: "capitalize"
   },
+  amountPill: {
+    alignSelf: "flex-start",
+    borderRadius: 999,
+    backgroundColor: "#edf2f7",
+    paddingHorizontal: 10,
+    paddingVertical: 6
+  },
+  amountPillText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "700"
+  },
   itemMeta: {
     color: colors.slate,
-    fontSize: 14,
-    fontWeight: "600"
+    fontSize: 13,
+    lineHeight: 19
   },
   statusBadge: {
     borderRadius: 999,
@@ -232,10 +297,22 @@ const styles = StyleSheet.create({
     fontWeight: "800"
   },
   cardBottom: {
-    gap: 4
+    gap: 8,
+    paddingTop: 2
+  },
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12
+  },
+  detailLabel: {
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "700"
   },
   bottomText: {
-    color: colors.slate,
+    color: colors.ink,
     fontSize: 13,
     lineHeight: 19
   }
