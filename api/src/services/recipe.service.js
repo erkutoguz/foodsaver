@@ -1,4 +1,4 @@
-import { generateMockRecipe } from "../adapters/mock-recipe.provider.js";
+import { generateRecipe } from "../adapters/recipe.provider.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
 import { findInventoryItemsByUserId } from "../repositories/inventory.repository.js";
@@ -110,7 +110,7 @@ export async function processRecipeJob(jobId) {
   });
 
   try {
-    const generatedRecipe = await generateMockRecipe({
+    const generatedRecipe = await generateRecipe({
       prompt: queuedJob.prompt,
       inventoryItems: queuedJob.inventorySnapshot
     });

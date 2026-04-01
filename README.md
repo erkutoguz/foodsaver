@@ -16,13 +16,13 @@ Current implemented modules:
 - Inventory CRUD
 - Inventory expiration summary
 - Mock image recognition
-- Mock recipe generation
+- Recipe generation with mock or Gemini provider
 - Favorites
 - Cook flow and history
 
 Not implemented yet:
 - Notification delivery
-- Real AI provider integration
+- Real image processing for image recognition
 
 ## Project Structure
 
@@ -76,11 +76,17 @@ MONGODB_URI=mongodb://127.0.0.1:27017/foodsaver
 JWT_SECRET=dev-secret-change-me
 JWT_EXPIRES_IN=7d
 RECIPE_JOB_DELAY_MS=150
+AI_PROVIDER=mock
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
 Notes:
 - `MONGODB_URI` should point to your real MongoDB Atlas database in development.
 - `RECIPE_JOB_DELAY_MS` controls how long the mock recipe job waits before processing.
+- `AI_PROVIDER=mock` keeps the current test-friendly behavior.
+- To use Gemini, set `AI_PROVIDER=gemini` and provide `GEMINI_API_KEY`.
+- `GEMINI_MODEL` defaults to `gemini-2.5-flash`.
 
 ## Base URL
 
@@ -508,8 +514,8 @@ Response `200`:
 ## Recipes
 
 Important:
-- Recipe generation is currently mock-based.
-- It does not call a real AI provider yet.
+- Recipe generation supports `mock` and `gemini` providers.
+- Default behavior is still `mock`.
 - The API still behaves like an async job system.
 
 ### `POST /api/recipes/generate`
@@ -807,12 +813,13 @@ Current test coverage includes:
 - inventory CRUD
 - mock image recognition
 - mock recipe generation job flow
+- gemini config failure path
 - favorites flow
 - cook flow and history
 
 ## Notes
 
-- The recipe generation module currently uses mock data on purpose.
+- The recipe generation module uses `mock` by default and can be switched to Gemini with env variables.
 - The image recognition module currently uses mock data on purpose.
 - The API is written in plain JavaScript with ESM.
 - The backend is intentionally kept straightforward and not over-engineered.
