@@ -15,13 +15,13 @@ Current implemented modules:
 - Authentication
 - Inventory CRUD
 - Inventory expiration summary
+- Mock image recognition
 - Mock recipe generation
 - Favorites
 - Cook flow and history
 
 Not implemented yet:
 - Notification delivery
-- Image recognition
 - Real AI provider integration
 
 ## Project Structure
@@ -394,6 +394,63 @@ Response `200`:
 }
 ```
 
+## Image Recognition
+
+Important:
+- Image recognition is currently mock-based.
+- It does not process real image pixels yet.
+- The endpoint is useful for frontend integration and flow testing right now.
+
+### `POST /api/image-recognition/analyze`
+
+Analyzes an image-like input and returns suggested inventory items.
+
+Request body:
+
+```json
+{
+  "imageUrl": "https://example.com/uploads/milk-eggs-tomato.jpg",
+  "context": "items on a kitchen counter"
+}
+```
+
+You can also send `fileName` or `imageBase64` instead of `imageUrl`.
+
+Response `200`:
+
+```json
+{
+  "analysis": {
+    "provider": "mock",
+    "sourceType": "imageUrl",
+    "summary": "Detected 3 possible items from mock image analysis.",
+    "detectedItems": [
+      {
+        "name": "Milk",
+        "quantity": 1,
+        "unit": "piece",
+        "category": "dairy",
+        "confidence": 0.96
+      },
+      {
+        "name": "Egg",
+        "quantity": 6,
+        "unit": "piece",
+        "category": "protein",
+        "confidence": 0.94
+      },
+      {
+        "name": "Tomato",
+        "quantity": 4,
+        "unit": "piece",
+        "category": "vegetable",
+        "confidence": 0.92
+      }
+    ]
+  }
+}
+```
+
 ## Recipes
 
 Important:
@@ -676,6 +733,8 @@ Important validation rules currently in place:
   - at least one field is required
 - Recipe generate:
   - `prompt` is required
+- Image recognition analyze:
+  - at least one of `imageUrl`, `fileName`, or `imageBase64` is required
 - Favorite create:
   - `recipeId` must be a valid Mongo ObjectId
 
@@ -689,6 +748,7 @@ Current test coverage includes:
 - health endpoint
 - auth flows
 - inventory CRUD
+- mock image recognition
 - mock recipe generation job flow
 - favorites flow
 - cook flow and history
@@ -696,5 +756,6 @@ Current test coverage includes:
 ## Notes
 
 - The recipe generation module currently uses mock data on purpose.
+- The image recognition module currently uses mock data on purpose.
 - The API is written in plain JavaScript with ESM.
 - The backend is intentionally kept straightforward and not over-engineered.

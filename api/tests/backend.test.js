@@ -441,6 +441,70 @@ describe("backend", () => {
     expect(response.body.code).toBe("AUTH_REQUIRED");
   });
 
+  it("analyzes an image with the mock image recognition provider", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "image-recognition@example.com"
+    });
+
+    const response = await request(app)
+      .post("/api/image-recognition/analyze")
+      .set("Authorization", session.authHeader)
+      .send({
+        imageUrl: "https://example.com/uploads/milk-eggs-tomato.jpg",
+        context: "items on a kitchen counter"
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.analysis.provider).toBe("mock");
+    expect(response.body.analysis.sourceType).toBe("imageUrl");
+    expect(response.body.analysis.detectedItems.length).toBeGreaterThanOrEqual(3);
+    expect(response.body.analysis.detectedItems.map((item) => item.name)).toEqual(
+      expect.arrayContaining(["Milk", "Egg", "Tomato"])
+    );
+  });
+
+  it("returns fallback image recognition suggestions when no clear item is found", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "image-recognition-fallback@example.com"
+    });
+
+    const response = await request(app)
+      .post("/api/image-recognition/analyze")
+      .set("Authorization", session.authHeader)
+      .send({
+        fileName: "mystery-photo.png"
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.analysis.detectedItems).toHaveLength(2);
+    expect(response.body.analysis.detectedItems[0].name).toBe("Tomato");
+  });
+
+  it("returns validation error when image recognition input is missing", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "image-recognition-validation@example.com"
+    });
+
+    const response = await request(app)
+      .post("/api/image-recognition/analyze")
+      .set("Authorization", session.authHeader)
+      .send({
+        context: "fridge photo"
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rejects image recognition requests without token", async () => {
+    const response = await request(app).post("/api/image-recognition/analyze").send({
+      fileName: "eggs.jpg"
+    });
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_REQUIRED");
+  });
+
   it("creates a mock recipe job and returns the generated recipe", async () => {
     const session = await registerAndGetAuthHeader();
 
