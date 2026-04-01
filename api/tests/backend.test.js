@@ -14,6 +14,7 @@ let mongoServer;
 let app;
 let createApp;
 let connectDatabase;
+let Favorite;
 let InventoryItem;
 let Recipe;
 let RecipeJob;
@@ -25,6 +26,7 @@ beforeAll(async () => {
 
   ({ createApp } = await import("../src/app.js"));
   ({ connectDatabase } = await import("../src/config/database.js"));
+  ({ Favorite } = await import("../src/models/favorite.model.js"));
   ({ InventoryItem } = await import("../src/models/inventory-item.model.js"));
   ({ Recipe } = await import("../src/models/recipe.model.js"));
   ({ RecipeJob } = await import("../src/models/recipe-job.model.js"));
@@ -35,6 +37,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await Favorite.deleteMany({});
   await InventoryItem.deleteMany({});
   await Recipe.deleteMany({});
   await RecipeJob.deleteMany({});
@@ -77,6 +80,22 @@ describe("backend", () => {
       token: response.body.token,
       authHeader: `Bearer ${response.body.token}`,
       user: response.body.user
+    };
+  }
+
+  async function createRecipeForUser(session, prompt = "easy lunch") {
+    const createJobResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({
+        prompt
+      });
+
+    const completedJobResponse = await waitForRecipeJobCompletion(session.authHeader, createJobResponse.body.jobId);
+
+    return {
+      job: completedJobResponse.body,
+      recipeId: completedJobResponse.body.recipeId
     };
   }
 
@@ -385,5 +404,103 @@ describe("backend", () => {
 
     expect(recipeResponse.status).toBe(404);
     expect(recipeResponse.body.code).toBe("RECIPE_NOT_FOUND");
+  });
+
+  it("adds a recipe to favorites", async () => {
+    const session = await registerAndGetAuthHeader();
+    const recipe = await createRecipeForUser(session, "favorite dinner");
+
+    const response = await request(app).post("/api/favorites").set("Authorization", session.authHeader).send({
+      recipeId: recipe.recipeId
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.favorite.recipeId).toBe(recipe.recipeId);
+    expect(response.body.favorite.recipe.title).toContain("Mock");
+  });
+
+  it("lists only the current user's favorites", async () => {
+    const firstUser = await registerAndGetAuthHeader({
+      email: "favorite-first@example.com"
+    });
+    const secondUser = await registerAndGetAuthHeader({
+      email: "favorite-second@example.com"
+    });
+
+    const firstRecipe = await createRecipeForUser(firstUser, "first favorite");
+    const secondRecipe = await createRecipeForUser(secondUser, "second favorite");
+
+    await request(app).post("/api/favorites").set("Authorization", firstUser.authHeader).send({
+      recipeId: firstRecipe.recipeId
+    });
+    await request(app).post("/api/favorites").set("Authorization", secondUser.authHeader).send({
+      recipeId: secondRecipe.recipeId
+    });
+
+    const response = await request(app).get("/api/favorites").set("Authorization", firstUser.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.favorites).toHaveLength(1);
+    expect(response.body.favorites[0].recipeId).toBe(firstRecipe.recipeId);
+  });
+
+  it("does not allow the same recipe to be favorited twice", async () => {
+    const session = await registerAndGetAuthHeader();
+    const recipe = await createRecipeForUser(session, "duplicate favorite");
+
+    await request(app).post("/api/favorites").set("Authorization", session.authHeader).send({
+      recipeId: recipe.recipeId
+    });
+
+    const response = await request(app).post("/api/favorites").set("Authorization", session.authHeader).send({
+      recipeId: recipe.recipeId
+    });
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("FAVORITE_ALREADY_EXISTS");
+  });
+
+  it("removes a favorite by recipe id", async () => {
+    const session = await registerAndGetAuthHeader();
+    const recipe = await createRecipeForUser(session, "remove favorite");
+
+    await request(app).post("/api/favorites").set("Authorization", session.authHeader).send({
+      recipeId: recipe.recipeId
+    });
+
+    const response = await request(app)
+      .delete(`/api/favorites/${recipe.recipeId}`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("deleted");
+
+    const favoritesInDatabase = await Favorite.find({});
+    expect(favoritesInDatabase).toHaveLength(0);
+  });
+
+  it("rejects favorites requests without token", async () => {
+    const response = await request(app).get("/api/favorites");
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_REQUIRED");
+  });
+
+  it("does not allow one user to favorite another user's recipe", async () => {
+    const firstUser = await registerAndGetAuthHeader({
+      email: "recipe-owner-favorite@example.com"
+    });
+    const secondUser = await registerAndGetAuthHeader({
+      email: "recipe-other-favorite@example.com"
+    });
+
+    const recipe = await createRecipeForUser(firstUser, "private favorite");
+
+    const response = await request(app).post("/api/favorites").set("Authorization", secondUser.authHeader).send({
+      recipeId: recipe.recipeId
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.body.code).toBe("RECIPE_NOT_FOUND");
   });
 });
