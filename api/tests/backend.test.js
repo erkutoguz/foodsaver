@@ -13,6 +13,7 @@ let mongoServer;
 let app;
 let createApp;
 let connectDatabase;
+let InventoryItem;
 let User;
 
 beforeAll(async () => {
@@ -21,6 +22,7 @@ beforeAll(async () => {
 
   ({ createApp } = await import("../src/app.js"));
   ({ connectDatabase } = await import("../src/config/database.js"));
+  ({ InventoryItem } = await import("../src/models/inventory-item.model.js"));
   ({ User } = await import("../src/models/user.model.js"));
 
   await connectDatabase();
@@ -28,6 +30,7 @@ beforeAll(async () => {
 });
 
 beforeEach(async () => {
+  await InventoryItem.deleteMany({});
   await User.deleteMany({});
 });
 
@@ -40,6 +43,20 @@ afterAll(async () => {
 });
 
 describe("backend", () => {
+  async function registerAndGetAuthHeader(user = {}) {
+    const response = await request(app).post("/api/auth/register").send({
+      fullName: user.fullName || "Erkut O.",
+      email: user.email || "erkut@example.com",
+      password: user.password || "123456"
+    });
+
+    return {
+      token: response.body.token,
+      authHeader: `Bearer ${response.body.token}`,
+      user: response.body.user
+    };
+  }
+
   it("returns health status", async () => {
     const response = await request(app).get("/health");
 
@@ -126,5 +143,134 @@ describe("backend", () => {
 
     expect(response.status).toBe(401);
     expect(response.body.code).toBe("AUTH_REQUIRED");
+  });
+
+  it("creates an inventory item for the authenticated user", async () => {
+    const session = await registerAndGetAuthHeader();
+
+    const response = await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Milk",
+      quantity: 2,
+      unit: "piece",
+      category: "dairy",
+      expiresAt: "2026-05-01T00:00:00.000Z"
+    });
+
+    expect(response.status).toBe(201);
+    expect(response.body.item.name).toBe("Milk");
+    expect(response.body.item.quantity).toBe(2);
+    expect(response.body.item.category).toBe("dairy");
+  });
+
+  it("lists only the current user's inventory items", async () => {
+    const firstUser = await registerAndGetAuthHeader({
+      email: "first@example.com"
+    });
+    const secondUser = await registerAndGetAuthHeader({
+      email: "second@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", firstUser.authHeader).send({
+      name: "Egg",
+      quantity: 6,
+      unit: "piece"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", secondUser.authHeader).send({
+      name: "Rice",
+      quantity: 500,
+      unit: "gram"
+    });
+
+    const response = await request(app).get("/api/inventory").set("Authorization", firstUser.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].name).toBe("Egg");
+  });
+
+  it("updates an existing inventory item", async () => {
+    const session = await registerAndGetAuthHeader();
+    const createResponse = await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Tomato",
+      quantity: 3,
+      unit: "piece"
+    });
+
+    const response = await request(app)
+      .patch(`/api/inventory/${createResponse.body.item.id}`)
+      .set("Authorization", session.authHeader)
+      .send({
+        quantity: 5,
+        category: "vegetable"
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.item.quantity).toBe(5);
+    expect(response.body.item.category).toBe("vegetable");
+  });
+
+  it("deletes an inventory item", async () => {
+    const session = await registerAndGetAuthHeader();
+    const createResponse = await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Water",
+      quantity: 1000,
+      unit: "ml"
+    });
+
+    const response = await request(app)
+      .delete(`/api/inventory/${createResponse.body.item.id}`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("deleted");
+
+    const itemsInDatabase = await InventoryItem.find({});
+    expect(itemsInDatabase).toHaveLength(0);
+  });
+
+  it("rejects inventory requests without token", async () => {
+    const response = await request(app).get("/api/inventory");
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_REQUIRED");
+  });
+
+  it("returns validation error for bad inventory payload", async () => {
+    const session = await registerAndGetAuthHeader();
+
+    const response = await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "",
+      quantity: 0,
+      unit: "box"
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("does not allow one user to update another user's inventory item", async () => {
+    const firstUser = await registerAndGetAuthHeader({
+      email: "first-owner@example.com"
+    });
+    const secondUser = await registerAndGetAuthHeader({
+      email: "second-owner@example.com"
+    });
+
+    const createResponse = await request(app).post("/api/inventory").set("Authorization", firstUser.authHeader).send({
+      name: "Cheese",
+      quantity: 1,
+      unit: "piece"
+    });
+
+    const response = await request(app)
+      .patch(`/api/inventory/${createResponse.body.item.id}`)
+      .set("Authorization", secondUser.authHeader)
+      .send({
+        quantity: 2
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body.code).toBe("INVENTORY_ITEM_NOT_FOUND");
   });
 });

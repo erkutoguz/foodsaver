@@ -1,7 +1,7 @@
-export function validate(schema) {
+export function validate(schema, target = "body") {
   return async function validateRequest(request, _response, next) {
     try {
-      request.body = await schema.parseAsync(request.body);
+      request[target] = await schema.parseAsync(request[target]);
       next();
     } catch (error) {
       next(error);

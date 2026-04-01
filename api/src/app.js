@@ -5,6 +5,7 @@ import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 import { env } from "./config/env.js";
 import { authRouter } from "./routes/auth.routes.js";
+import { inventoryRouter } from "./routes/inventory.routes.js";
 import { notFoundHandler } from "./middleware/not-found.js";
 import { errorHandler } from "./middleware/error-handler.js";
 
@@ -38,6 +39,7 @@ export function createApp() {
   });
 
   app.use("/api/auth", authRouter);
+  app.use("/api/inventory", inventoryRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
