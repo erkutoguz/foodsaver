@@ -135,10 +135,10 @@ export function LandingHeroArt() {
       </Animated.View>
 
       <View style={styles.overlayCard}>
-        <Text style={styles.overlayLabel}>BUGUNUN ONERISI</Text>
-        <Text style={styles.overlayTitle}>Tarihi yaklasan urunleri once kullan</Text>
+        <Text style={styles.overlayLabel}>TODAY'S TIP</Text>
+        <Text style={styles.overlayTitle}>Use items that are close to expiring first</Text>
         <Text style={styles.overlayText}>
-          Foodsaver bunu hatirlatir ve tarif secimini daha kolay hale getirir.
+          Foodsaver highlights them early and makes recipe decisions easier.
         </Text>
       </View>
     </View>

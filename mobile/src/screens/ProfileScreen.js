@@ -5,11 +5,11 @@ export function ProfileScreen() {
   return (
     <ScreenShell
       eyebrow="MORE"
-      title="Diger"
-      description="Favoriler, gecmis tarifler ve hesap ayarlari bu alanda yer alacak."
+      title="More"
+      description="Favorites, recipe history, and account settings will live in this area."
     >
-      <InfoCard title="Bu ekranda olacaklar">
-        History, favorite recipes ve hesap detaylari burada gorunecek.
+      <InfoCard title="What will be here">
+        History, favorite recipes, and account details will appear here.
       </InfoCard>
     </ScreenShell>
   );

@@ -91,7 +91,7 @@ export function AppNavigator() {
             name="Auth"
             component={AuthScreen}
             options={({ route }) => ({
-              title: route.params?.mode === "register" ? "Hesap olustur" : "Giris yap"
+              title: route.params?.mode === "register" ? "Create Account" : "Sign In"
             })}
           />
         </Stack.Navigator>

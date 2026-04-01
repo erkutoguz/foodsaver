@@ -10,32 +10,32 @@ export function AuthScreen({ route }) {
   return (
     <ScreenShell
       eyebrow={mode === "register" ? "WELCOME" : "LOGIN"}
-      title={mode === "register" ? "Yeni hesabini olustur" : "Hesabina giris yap"}
-      description="Bu ekranda kayit ve giris akisini bir sonraki adimda gercek endpointlerle baglayacagiz."
+      title={mode === "register" ? "Create your account" : "Sign in to your account"}
+      description="We will connect the register and login flow to the real backend in the next step."
     >
-      <InfoCard title="Hazirlanacak alanlar">
+      <InfoCard title="Fields coming next">
         <View style={styles.list}>
           <View style={styles.fakeInput}>
-            <Text style={styles.fakeLabel}>E-posta</Text>
+            <Text style={styles.fakeLabel}>Email</Text>
           </View>
           <View style={styles.fakeInput}>
-            <Text style={styles.fakeLabel}>Sifre</Text>
+            <Text style={styles.fakeLabel}>Password</Text>
           </View>
           {mode === "register" ? (
             <View style={styles.fakeInput}>
-              <Text style={styles.fakeLabel}>Ad soyad</Text>
+              <Text style={styles.fakeLabel}>Full name</Text>
             </View>
           ) : null}
         </View>
       </InfoCard>
 
       <PrimaryButton
-        label={mode === "register" ? "Kayit akisini baglayacagiz" : "Giris akisini baglayacagiz"}
+        label={mode === "register" ? "Register flow coming next" : "Login flow coming next"}
       />
 
       <Text style={styles.note}>
-        Bu turda sadece landing ve auth giris akisini hazirliyoruz. Form baglantisini
-        bir sonraki adimda ekleyecegiz.
+        In this step we are only preparing the landing and auth flow. We will wire up
+        the actual form actions next.
       </Text>
     </ScreenShell>
   );

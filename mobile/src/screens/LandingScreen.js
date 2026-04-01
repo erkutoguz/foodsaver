@@ -16,31 +16,31 @@ export function LandingScreen({ navigation }) {
             <Text style={styles.brandTagText}>FOODSAVER</Text>
           </View>
 
-          <Text style={styles.title}>Yemek planini mutfagindaki gercek urunlere gore yap</Text>
+          <Text style={styles.title}>Plan your meals around the ingredients you already have</Text>
           <Text style={styles.description}>
-            Foodsaver, eldeki malzemeleri takip etmene yardim eder. Tarihi yaklasanlari
-            one cikarir, tarif onerir ve israfi azaltmana destek olur.
+            Foodsaver helps you keep track of what is in your kitchen, spot items that
+            are close to expiring, and find recipes that make sense for your pantry.
           </Text>
 
           <View style={styles.pills}>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>Pantry takibi</Text>
+              <Text style={styles.pillText}>Pantry tracking</Text>
             </View>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>Tarif onerisi</Text>
+              <Text style={styles.pillText}>Recipe ideas</Text>
             </View>
             <View style={styles.pill}>
-              <Text style={styles.pillText}>Son kullanma takibi</Text>
+              <Text style={styles.pillText}>Expiry tracking</Text>
             </View>
           </View>
 
           <View style={styles.actions}>
             <PrimaryButton
-              label="Giris yap"
+              label="Sign In"
               onPress={() => navigation.navigate("Auth", { mode: "login" })}
             />
             <PrimaryButton
-              label="Hesap olustur"
+              label="Create Account"
               variant="secondary"
               onPress={() => navigation.navigate("Auth", { mode: "register" })}
             />
@@ -50,51 +50,28 @@ export function LandingScreen({ navigation }) {
         <View style={styles.metricRow}>
           <View style={styles.metricCard}>
             <Text style={styles.metricValue}>24/7</Text>
-            <Text style={styles.metricLabel}>mutfak duzeni</Text>
+            <Text style={styles.metricLabel}>kitchen control</Text>
           </View>
 
           <View style={[styles.metricCard, styles.metricCardAccent]}>
             <Text style={styles.metricValue}>AI</Text>
-            <Text style={styles.metricLabel}>tarif destegi</Text>
+            <Text style={styles.metricLabel}>recipe support</Text>
           </View>
         </View>
 
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionEyebrow}>NE KAZANDIRIR?</Text>
-          <Text style={styles.sectionTitle}>Akilli tariften sonra deneyim burada devam ediyor</Text>
-        </View>
-
-        <View style={styles.highlightRow}>
-          <View style={[styles.highlightCard, styles.highlightGreen]}>
-            <Text style={styles.highlightTitle}>Akilli takip</Text>
-            <Text style={styles.highlightText}>
-              Son kullanma tarihi yaklasan urunleri gec kalmadan gor ve once onlari kullan.
-            </Text>
-          </View>
-
-          <View style={[styles.highlightCard, styles.highlightWarm]}>
-            <Text style={styles.highlightTitle}>Hizli karar</Text>
-            <Text style={styles.highlightText}>
-              Elindeki malzemelerle hangi yemegi yapabilecegini kafa karismadan sec.
-            </Text>
-          </View>
-
-          <View style={[styles.highlightCard, styles.highlightRose]}>
-            <Text style={styles.highlightTitle}>Planli mutfak</Text>
-            <Text style={styles.highlightText}>
-              Favorilerine ekle, pisirdiklerini kaydet ve tekrar ne yapacagini daha hizli sec.
-            </Text>
-          </View>
+          <Text style={styles.sectionEyebrow}>WHY IT HELPS</Text>
+          <Text style={styles.sectionTitle}>The experience keeps going after the recipe suggestion</Text>
         </View>
 
         <View style={styles.recipeSpotlight}>
           <View style={styles.recipeTopRow}>
             <View>
-              <Text style={styles.recipeEyebrow}>BUGUNUN ORNEK TARIFI</Text>
-              <Text style={styles.recipeTitle}>Kremali Sebzeli Makarna</Text>
+              <Text style={styles.recipeEyebrow}>TODAY'S SAMPLE RECIPE</Text>
+              <Text style={styles.recipeTitle}>Creamy Veggie Pasta</Text>
             </View>
             <View style={styles.recipeBadge}>
-              <Text style={styles.recipeBadgeText}>12 dk</Text>
+              <Text style={styles.recipeBadgeText}>12 min</Text>
             </View>
           </View>
 
@@ -104,85 +81,23 @@ export function LandingScreen({ navigation }) {
             </View>
             <View style={styles.recipeTags}>
               <View style={styles.recipeTag}>
-                <Text style={styles.recipeTagText}>brokoli</Text>
+                <Text style={styles.recipeTagText}>broccoli</Text>
               </View>
               <View style={styles.recipeTag}>
-                <Text style={styles.recipeTagText}>krema</Text>
+                <Text style={styles.recipeTagText}>cream</Text>
               </View>
               <View style={styles.recipeTag}>
-                <Text style={styles.recipeTagText}>makarna</Text>
+                <Text style={styles.recipeTagText}>pasta</Text>
               </View>
             </View>
           </View>
 
           <Text style={styles.recipeDescription}>
-            Elindeki urunleri hizli bir aksam yemegine donusturen, sade ama dolu bir tarif akisi.
+            A simple but satisfying dinner idea that turns what you already have into
+            something practical for tonight.
           </Text>
         </View>
 
-        <View style={styles.flowCard}>
-          <Text style={styles.flowTitle}>Uygulama nasil ilerliyor?</Text>
-
-          <View style={styles.flowStep}>
-            <View style={styles.flowNumber}>
-              <Text style={styles.flowNumberText}>1</Text>
-            </View>
-            <View style={styles.flowTextWrap}>
-              <Text style={styles.flowStepTitle}>Urunlerini ekle</Text>
-              <Text style={styles.flowStepText}>
-                Pantry listeni olustur, quantity ve son kullanma tarihlerini duzenle.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.flowStep}>
-            <View style={styles.flowNumber}>
-              <Text style={styles.flowNumberText}>2</Text>
-            </View>
-            <View style={styles.flowTextWrap}>
-              <Text style={styles.flowStepTitle}>Tarif uret</Text>
-              <Text style={styles.flowStepText}>
-                Elindeki malzemelerle uyumlu tarifleri al ve uygun olani sec.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.flowStep}>
-            <View style={styles.flowNumber}>
-              <Text style={styles.flowNumberText}>3</Text>
-            </View>
-            <View style={styles.flowTextWrap}>
-              <Text style={styles.flowStepTitle}>Kaydet ve tekrar kullan</Text>
-              <Text style={styles.flowStepText}>
-                Favorilerine ekle, pisirme gecmisini tut ve bir sonraki kararini kolaylastir.
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <InfoCard title="Foodsaver ile neler yapabileceksin?">
-          <View style={styles.list}>
-            <Text style={styles.listItem}>- Pantry kaydini duzenli tutabileceksin</Text>
-            <Text style={styles.listItem}>- Tarif onerilerini tek yerde goreceksin</Text>
-            <Text style={styles.listItem}>- Favorilerini ve gecmisini saklayabileceksin</Text>
-          </View>
-        </InfoCard>
-
-        <InfoCard title="Ilk adim" tone="accent">
-          Uygulamayi kullanmaya baslamak icin hesabina giris yapman yeterli. Sonraki
-          adimda auth ekranini gercek endpointlerle baglayacagiz.
-        </InfoCard>
-
-        <View style={styles.bottomCta}>
-          <Text style={styles.bottomCtaTitle}>Mutfagini daha planli kullanmaya basla</Text>
-          <Text style={styles.bottomCtaText}>
-            Kisa bir hesap olusturma adimindan sonra inventory ve tarif tarafina gececeksin.
-          </Text>
-          <PrimaryButton
-            label="Hemen basla"
-            onPress={() => navigation.navigate("Auth", { mode: "register" })}
-          />
-        </View>
       </ScrollView>
     </SafeAreaView>
   );

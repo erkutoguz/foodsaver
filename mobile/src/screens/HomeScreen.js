@@ -7,14 +7,14 @@ export function HomeScreen() {
   return (
     <ScreenShell
       eyebrow="TODAY"
-      title="Mutfagina genel bakis"
-      description="Inventory, tarifler ve bugunun oncelikli urunleri burada bir araya gelecek."
+      title="Your kitchen at a glance"
+      description="Inventory, recipes, and the items that need attention today will come together here."
     >
-      <InfoCard title="Yakinda burada olacak">
+      <InfoCard title="Coming soon">
         <View style={styles.list}>
-          <Text style={styles.item}>- Kalan urun ozeti</Text>
-          <Text style={styles.item}>- Expiring items kisa listesi</Text>
-          <Text style={styles.item}>- Hizli recipe onerileri</Text>
+          <Text style={styles.item}>- Remaining item summary</Text>
+          <Text style={styles.item}>- Short list of expiring items</Text>
+          <Text style={styles.item}>- Quick recipe suggestions</Text>
         </View>
       </InfoCard>
     </ScreenShell>

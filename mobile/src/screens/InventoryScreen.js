@@ -6,10 +6,11 @@ export function InventoryScreen() {
     <ScreenShell
       eyebrow="PANTRY"
       title="Inventory"
-      description="Mutfagindaki urunleri burada gorecek, duzenleyecek ve son kullanma tarihi takibini yapacaksin."
+      description="You will see, edit, and track the expiration dates of your kitchen items here."
     >
-      <InfoCard title="Bu ekranda olacaklar">
-        Listeleme, urun ekleme, quantity guncelleme ve expiration summary burada olacak.
+      <InfoCard title="What will be here">
+        Listing items, adding new ones, updating quantities, and viewing the expiration
+        summary will all live here.
       </InfoCard>
     </ScreenShell>
   );
