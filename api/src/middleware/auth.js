@@ -1,5 +1,5 @@
-import { User } from "../models/user.model.js";
 import { verifyToken } from "../lib/auth.js";
+import { findUserById } from "../repositories/user.repository.js";
 import { createError } from "../utils/http-error.js";
 
 export async function requireAuth(request, _response, next) {
@@ -24,7 +24,7 @@ export async function requireAuth(request, _response, next) {
       throw createError(401, "INVALID_TOKEN", "Authentication token is invalid or expired.");
     }
 
-    const user = await User.findById(payload.sub);
+    const user = await findUserById(payload.sub);
 
     if (!user) {
       throw createError(401, "INVALID_TOKEN", "Authentication token is invalid.");

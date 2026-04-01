@@ -1,6 +1,10 @@
-import { InventoryItem } from "../models/inventory-item.model.js";
-import { RecipeHistory } from "../models/recipe-history.model.js";
-import { Recipe } from "../models/recipe.model.js";
+import {
+  deleteInventoryItemById,
+  findInventoryItemsByUserId,
+  updateInventoryItemQuantityById
+} from "../repositories/inventory.repository.js";
+import { createRecipeHistoryRecord, findHistoryByUserId } from "../repositories/history.repository.js";
+import { findRecipeByIdAndUserId } from "../repositories/recipe.repository.js";
 import { createError } from "../utils/http-error.js";
 
 function normalizeName(value) {
@@ -25,9 +29,7 @@ function buildMissingIngredientLabel(ingredient) {
 }
 
 async function applyInventoryConsumption(userId, ingredients) {
-  const inventoryItems = await InventoryItem.find({ userId }).sort({
-    createdAt: 1
-  });
+  const inventoryItems = await findInventoryItemsByUserId(userId, { createdAt: 1 });
 
   const workingItems = inventoryItems.map((item) => ({
     item,
@@ -79,21 +81,17 @@ async function applyInventoryConsumption(userId, ingredients) {
       }
 
       if (entry.remainingQuantity <= 0) {
-        await entry.item.deleteOne();
+        await deleteInventoryItemById(entry.item._id);
         return;
       }
 
-      entry.item.quantity = entry.remainingQuantity;
-      await entry.item.save();
+      await updateInventoryItemQuantityById(entry.item._id, entry.remainingQuantity);
     })
   );
 }
 
 export async function cookRecipe(userId, recipeId) {
-  const recipe = await Recipe.findOne({
-    _id: recipeId,
-    userId
-  });
+  const recipe = await findRecipeByIdAndUserId(recipeId, userId);
 
   if (!recipe) {
     throw createError(404, "RECIPE_NOT_FOUND", "Recipe was not found.");
@@ -101,7 +99,7 @@ export async function cookRecipe(userId, recipeId) {
 
   await applyInventoryConsumption(userId, recipe.ingredients);
 
-  const historyEntry = await RecipeHistory.create({
+  const historyEntry = await createRecipeHistoryRecord({
     userId,
     recipeId: recipe._id,
     title: recipe.title,
@@ -117,9 +115,7 @@ export async function cookRecipe(userId, recipeId) {
 }
 
 export async function listHistory(userId) {
-  const historyEntries = await RecipeHistory.find({ userId }).sort({
-    cookedAt: -1
-  });
+  const historyEntries = await findHistoryByUserId(userId);
 
   return {
     history: historyEntries.map(toHistoryResponse)

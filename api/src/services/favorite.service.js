@@ -1,5 +1,10 @@
-import { Favorite } from "../models/favorite.model.js";
-import { Recipe } from "../models/recipe.model.js";
+import {
+  createFavoriteRecord,
+  deleteFavoriteByUserIdAndRecipeId,
+  findFavoriteByUserIdAndRecipeId,
+  findFavoritesByUserIdWithRecipe
+} from "../repositories/favorite.repository.js";
+import { findRecipeByIdAndUserId } from "../repositories/recipe.repository.js";
 import { createError } from "../utils/http-error.js";
 
 function toRecipeResponse(recipe) {
@@ -29,11 +34,7 @@ function toFavoriteResponse(favorite, recipe = favorite.recipeId) {
 }
 
 export async function listFavorites(userId) {
-  const favorites = await Favorite.find({ userId })
-    .sort({
-      createdAt: -1
-    })
-    .populate("recipeId");
+  const favorites = await findFavoritesByUserIdWithRecipe(userId);
 
   return {
     favorites: favorites
@@ -43,25 +44,19 @@ export async function listFavorites(userId) {
 }
 
 export async function addFavorite(userId, { recipeId }) {
-  const recipe = await Recipe.findOne({
-    _id: recipeId,
-    userId
-  });
+  const recipe = await findRecipeByIdAndUserId(recipeId, userId);
 
   if (!recipe) {
     throw createError(404, "RECIPE_NOT_FOUND", "Recipe was not found.");
   }
 
-  const existingFavorite = await Favorite.findOne({
-    userId,
-    recipeId
-  });
+  const existingFavorite = await findFavoriteByUserIdAndRecipeId(userId, recipeId);
 
   if (existingFavorite) {
     throw createError(409, "FAVORITE_ALREADY_EXISTS", "Recipe is already in favorites.");
   }
 
-  const favorite = await Favorite.create({
+  const favorite = await createFavoriteRecord({
     userId,
     recipeId
   });
@@ -72,10 +67,7 @@ export async function addFavorite(userId, { recipeId }) {
 }
 
 export async function removeFavorite(userId, recipeId) {
-  const favorite = await Favorite.findOneAndDelete({
-    userId,
-    recipeId
-  });
+  const favorite = await deleteFavoriteByUserIdAndRecipeId(userId, recipeId);
 
   if (!favorite) {
     throw createError(404, "FAVORITE_NOT_FOUND", "Favorite recipe was not found.");

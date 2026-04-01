@@ -1,9 +1,14 @@
 import { generateMockRecipe } from "../adapters/mock-recipe.provider.js";
 import { env } from "../config/env.js";
-import { InventoryItem } from "../models/inventory-item.model.js";
-import { RecipeJob } from "../models/recipe-job.model.js";
-import { Recipe } from "../models/recipe.model.js";
 import { logger } from "../lib/logger.js";
+import { findInventoryItemsByUserId } from "../repositories/inventory.repository.js";
+import {
+  createRecipeJobRecord,
+  findRecipeJobById,
+  findRecipeJobByIdAndUserId,
+  updateRecipeJobById
+} from "../repositories/recipe-job.repository.js";
+import { createRecipeRecord, findRecipeByIdAndUserId } from "../repositories/recipe.repository.js";
 import { createError } from "../utils/http-error.js";
 
 function toRecipeResponse(recipe) {
@@ -53,11 +58,9 @@ function toInventorySnapshot(items) {
 }
 
 export async function createRecipeJob(userId, { prompt }) {
-  const inventoryItems = await InventoryItem.find({ userId }).sort({
-    createdAt: -1
-  });
+  const inventoryItems = await findInventoryItemsByUserId(userId);
 
-  const job = await RecipeJob.create({
+  const job = await createRecipeJobRecord({
     userId,
     prompt,
     status: "queued",
@@ -73,10 +76,7 @@ export async function createRecipeJob(userId, { prompt }) {
 }
 
 export async function getRecipeJob(userId, jobId) {
-  const job = await RecipeJob.findOne({
-    _id: jobId,
-    userId
-  });
+  const job = await findRecipeJobByIdAndUserId(jobId, userId);
 
   if (!job) {
     throw createError(404, "RECIPE_JOB_NOT_FOUND", "Recipe job was not found.");
@@ -86,10 +86,7 @@ export async function getRecipeJob(userId, jobId) {
 }
 
 export async function getRecipeById(userId, recipeId) {
-  const recipe = await Recipe.findOne({
-    _id: recipeId,
-    userId
-  });
+  const recipe = await findRecipeByIdAndUserId(recipeId, userId);
 
   if (!recipe) {
     throw createError(404, "RECIPE_NOT_FOUND", "Recipe was not found.");
@@ -101,15 +98,16 @@ export async function getRecipeById(userId, recipeId) {
 }
 
 export async function processRecipeJob(jobId) {
-  const queuedJob = await RecipeJob.findById(jobId);
+  const queuedJob = await findRecipeJobById(jobId);
 
   if (!queuedJob || queuedJob.status === "completed" || queuedJob.status === "failed") {
     return;
   }
 
-  queuedJob.status = "processing";
-  queuedJob.errorMessage = null;
-  await queuedJob.save();
+  await updateRecipeJobById(jobId, {
+    status: "processing",
+    errorMessage: null
+  });
 
   try {
     const generatedRecipe = await generateMockRecipe({
@@ -117,21 +115,24 @@ export async function processRecipeJob(jobId) {
       inventoryItems: queuedJob.inventorySnapshot
     });
 
-    const recipe = await Recipe.create({
+    const recipe = await createRecipeRecord({
       userId: queuedJob.userId,
       jobId: queuedJob._id,
       prompt: queuedJob.prompt,
       ...generatedRecipe
     });
 
-    queuedJob.status = "completed";
-    queuedJob.recipeId = recipe._id;
-    queuedJob.completedAt = new Date();
-    await queuedJob.save();
+    await updateRecipeJobById(jobId, {
+      status: "completed",
+      recipeId: recipe._id,
+      completedAt: new Date(),
+      errorMessage: null
+    });
   } catch (error) {
-    queuedJob.status = "failed";
-    queuedJob.errorMessage = error.message || "Recipe generation failed.";
-    await queuedJob.save();
+    await updateRecipeJobById(jobId, {
+      status: "failed",
+      errorMessage: error.message || "Recipe generation failed."
+    });
     logger.error("Recipe job failed", error);
   }
 }

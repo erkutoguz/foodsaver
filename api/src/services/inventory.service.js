@@ -1,4 +1,9 @@
-import { InventoryItem } from "../models/inventory-item.model.js";
+import {
+  createInventoryItemRecord,
+  deleteInventoryItemByIdAndUserId,
+  findInventoryItemsByUserId,
+  updateInventoryItemByIdAndUserId
+} from "../repositories/inventory.repository.js";
 import { createError } from "../utils/http-error.js";
 
 function toInventoryItemResponse(item) {
@@ -15,9 +20,7 @@ function toInventoryItemResponse(item) {
 }
 
 export async function listInventoryItems(userId) {
-  const items = await InventoryItem.find({ userId }).sort({
-    createdAt: -1
-  });
+  const items = await findInventoryItemsByUserId(userId);
 
   return {
     items: items.map(toInventoryItemResponse)
@@ -25,7 +28,7 @@ export async function listInventoryItems(userId) {
 }
 
 export async function createInventoryItem(userId, payload) {
-  const item = await InventoryItem.create({
+  const item = await createInventoryItemRecord({
     userId,
     ...payload
   });
@@ -36,17 +39,7 @@ export async function createInventoryItem(userId, payload) {
 }
 
 export async function updateInventoryItem(userId, itemId, payload) {
-  const item = await InventoryItem.findOneAndUpdate(
-    {
-      _id: itemId,
-      userId
-    },
-    payload,
-    {
-      new: true,
-      runValidators: true
-    }
-  );
+  const item = await updateInventoryItemByIdAndUserId(itemId, userId, payload);
 
   if (!item) {
     throw createError(404, "INVENTORY_ITEM_NOT_FOUND", "Inventory item was not found.");
@@ -58,10 +51,7 @@ export async function updateInventoryItem(userId, itemId, payload) {
 }
 
 export async function deleteInventoryItem(userId, itemId) {
-  const item = await InventoryItem.findOneAndDelete({
-    _id: itemId,
-    userId
-  });
+  const item = await deleteInventoryItemByIdAndUserId(itemId, userId);
 
   if (!item) {
     throw createError(404, "INVENTORY_ITEM_NOT_FOUND", "Inventory item was not found.");
