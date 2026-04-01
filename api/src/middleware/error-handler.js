@@ -1,3 +1,4 @@
+import { ZodError } from "zod";
 import { logger } from "../lib/logger.js";
 
 export function errorHandler(error, _request, response, _next) {
@@ -5,6 +6,13 @@ export function errorHandler(error, _request, response, _next) {
     return response.status(400).json({
       code: "INVALID_JSON",
       message: "Request body contains invalid JSON."
+    });
+  }
+
+  if (error instanceof ZodError) {
+    return response.status(400).json({
+      code: "VALIDATION_ERROR",
+      message: error.issues[0]?.message || "Request validation failed."
     });
   }
 
