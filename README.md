@@ -14,12 +14,13 @@ Current implemented modules:
 - Health check
 - Authentication
 - Inventory CRUD
+- Inventory expiration summary
 - Mock recipe generation
 - Favorites
 - Cook flow and history
 
 Not implemented yet:
-- Expiration alerts
+- Notification delivery
 - Image recognition
 - Real AI provider integration
 
@@ -239,6 +240,74 @@ Response `200`:
       "unit": "piece",
       "category": "dairy",
       "expiresAt": "2026-05-01T00:00:00.000Z",
+      "expirationStatus": "safe",
+      "daysUntilExpiration": 30,
+      "createdAt": "2026-04-01T12:00:00.000Z",
+      "updatedAt": "2026-04-01T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+`expirationStatus` can be:
+- `expired`
+- `expiringSoon`
+- `safe`
+
+### `GET /api/inventory/summary`
+
+Returns simple expiration statistics for the authenticated user's inventory.
+
+Optional query:
+
+```text
+?days=7
+```
+
+Response `200`:
+
+```json
+{
+  "summary": {
+    "totalItems": 4,
+    "expiredCount": 1,
+    "expiringSoonCount": 1,
+    "safeCount": 2,
+    "windowDays": 7
+  }
+}
+```
+
+### `GET /api/inventory/expiring`
+
+Lists only items that are already expired or will expire soon.
+
+Optional query:
+
+```text
+?days=7
+```
+
+Response `200`:
+
+```json
+{
+  "days": 7,
+  "counts": {
+    "total": 2,
+    "expired": 1,
+    "expiringSoon": 1
+  },
+  "items": [
+    {
+      "id": "680000000000000000000010",
+      "name": "Milk",
+      "quantity": 2,
+      "unit": "piece",
+      "category": "dairy",
+      "expiresAt": "2026-04-03T00:00:00.000Z",
+      "expirationStatus": "expiringSoon",
+      "daysUntilExpiration": 2,
       "createdAt": "2026-04-01T12:00:00.000Z",
       "updatedAt": "2026-04-01T12:00:00.000Z"
     }
@@ -273,6 +342,8 @@ Response `201`:
     "unit": "piece",
     "category": "dairy",
     "expiresAt": "2026-05-01T00:00:00.000Z",
+    "expirationStatus": "safe",
+    "daysUntilExpiration": 30,
     "createdAt": "2026-04-01T12:00:00.000Z",
     "updatedAt": "2026-04-01T12:00:00.000Z"
   }
@@ -303,6 +374,8 @@ Response `200`:
     "unit": "piece",
     "category": "vegetable",
     "expiresAt": null,
+    "expirationStatus": "safe",
+    "daysUntilExpiration": null,
     "createdAt": "2026-04-01T12:00:00.000Z",
     "updatedAt": "2026-04-01T12:05:00.000Z"
   }

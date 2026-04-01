@@ -38,3 +38,7 @@ export const updateInventoryItemSchema = z
 export const inventoryItemParamsSchema = z.object({
   id: objectIdSchema
 });
+
+export const inventoryExpirationQuerySchema = z.object({
+  days: z.coerce.number().int("Days must be a whole number.").min(1, "Days must be at least 1.").max(365, "Days cannot be greater than 365.").default(7)
+});

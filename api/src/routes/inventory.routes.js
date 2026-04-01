@@ -4,11 +4,14 @@ import { validate } from "../middleware/validate.js";
 import {
   createInventoryItem,
   deleteInventoryItem,
+  getInventorySummary,
+  listExpiringInventoryItems,
   listInventoryItems,
   updateInventoryItem
 } from "../services/inventory.service.js";
 import {
   createInventoryItemSchema,
+  inventoryExpirationQuerySchema,
   inventoryItemParamsSchema,
   updateInventoryItemSchema
 } from "../validators/inventory.schemas.js";
@@ -16,6 +19,24 @@ import {
 const inventoryRouter = Router();
 
 inventoryRouter.use(requireAuth);
+
+inventoryRouter.get("/summary", validate(inventoryExpirationQuerySchema, "query"), async (request, response, next) => {
+  try {
+    const result = await getInventorySummary(request.user._id, request.query.days);
+    response.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+inventoryRouter.get("/expiring", validate(inventoryExpirationQuerySchema, "query"), async (request, response, next) => {
+  try {
+    const result = await listExpiringInventoryItems(request.user._id, request.query.days);
+    response.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
 
 inventoryRouter.get("/", async (request, response, next) => {
   try {

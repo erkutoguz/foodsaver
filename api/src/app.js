@@ -27,6 +27,7 @@ export function createApp() {
     rateLimit({
       windowMs: 60 * 1000,
       max: 120,
+      skip: () => env.NODE_ENV === "test",
       standardHeaders: true,
       legacyHeaders: false
     })

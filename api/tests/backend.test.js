@@ -56,6 +56,13 @@ afterAll(async () => {
 });
 
 describe("backend", () => {
+  function daysFromNow(days) {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() + days);
+    date.setUTCHours(12, 0, 0, 0);
+    return date.toISOString();
+  }
+
   async function waitForRecipeJobCompletion(authHeader, jobId) {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const response = await request(app).get(`/api/recipes/jobs/${jobId}`).set("Authorization", authHeader);
@@ -317,6 +324,121 @@ describe("backend", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.code).toBe("INVENTORY_ITEM_NOT_FOUND");
+  });
+
+  it("returns inventory summary counts for expired, expiring soon, and safe items", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "summary@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Old Milk",
+      quantity: 1,
+      unit: "piece",
+      expiresAt: daysFromNow(-1)
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Yogurt",
+      quantity: 1,
+      unit: "piece",
+      expiresAt: daysFromNow(2)
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Rice",
+      quantity: 500,
+      unit: "gram",
+      expiresAt: daysFromNow(20)
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Salt",
+      quantity: 100,
+      unit: "gram"
+    });
+
+    const response = await request(app)
+      .get("/api/inventory/summary?days=7")
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.summary.totalItems).toBe(4);
+    expect(response.body.summary.expiredCount).toBe(1);
+    expect(response.body.summary.expiringSoonCount).toBe(1);
+    expect(response.body.summary.safeCount).toBe(2);
+    expect(response.body.summary.windowDays).toBe(7);
+  });
+
+  it("lists only expired and expiring-soon inventory items", async () => {
+    const firstUser = await registerAndGetAuthHeader({
+      email: "expiring-first@example.com"
+    });
+    const secondUser = await registerAndGetAuthHeader({
+      email: "expiring-second@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", firstUser.authHeader).send({
+      name: "Old Cheese",
+      quantity: 1,
+      unit: "piece",
+      expiresAt: daysFromNow(-2)
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", firstUser.authHeader).send({
+      name: "Fresh Milk",
+      quantity: 1,
+      unit: "piece",
+      expiresAt: daysFromNow(3)
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", firstUser.authHeader).send({
+      name: "Pasta",
+      quantity: 500,
+      unit: "gram",
+      expiresAt: daysFromNow(15)
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", secondUser.authHeader).send({
+      name: "Private Item",
+      quantity: 1,
+      unit: "piece",
+      expiresAt: daysFromNow(1)
+    });
+
+    const response = await request(app)
+      .get("/api/inventory/expiring?days=5")
+      .set("Authorization", firstUser.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.days).toBe(5);
+    expect(response.body.counts.total).toBe(2);
+    expect(response.body.counts.expired).toBe(1);
+    expect(response.body.counts.expiringSoon).toBe(1);
+    expect(response.body.items).toHaveLength(2);
+    expect(response.body.items[0].expirationStatus).toBe("expired");
+    expect(response.body.items[1].expirationStatus).toBe("expiringSoon");
+    expect(response.body.items.map((item) => item.name)).toEqual(["Old Cheese", "Fresh Milk"]);
+  });
+
+  it("returns validation error for invalid inventory expiration query", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "expiring-validation@example.com"
+    });
+
+    const response = await request(app)
+      .get("/api/inventory/expiring?days=0")
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("rejects inventory summary requests without token", async () => {
+    const response = await request(app).get("/api/inventory/summary");
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_REQUIRED");
   });
 
   it("creates a mock recipe job and returns the generated recipe", async () => {
