@@ -17,6 +17,7 @@ let connectDatabase;
 let Favorite;
 let InventoryItem;
 let Recipe;
+let RecipeHistory;
 let RecipeJob;
 let User;
 
@@ -28,6 +29,7 @@ beforeAll(async () => {
   ({ connectDatabase } = await import("../src/config/database.js"));
   ({ Favorite } = await import("../src/models/favorite.model.js"));
   ({ InventoryItem } = await import("../src/models/inventory-item.model.js"));
+  ({ RecipeHistory } = await import("../src/models/recipe-history.model.js"));
   ({ Recipe } = await import("../src/models/recipe.model.js"));
   ({ RecipeJob } = await import("../src/models/recipe-job.model.js"));
   ({ User } = await import("../src/models/user.model.js"));
@@ -40,6 +42,7 @@ beforeEach(async () => {
   await Favorite.deleteMany({});
   await InventoryItem.deleteMany({});
   await Recipe.deleteMany({});
+  await RecipeHistory.deleteMany({});
   await RecipeJob.deleteMany({});
   await User.deleteMany({});
 });
@@ -502,5 +505,105 @@ describe("backend", () => {
 
     expect(response.status).toBe(404);
     expect(response.body.code).toBe("RECIPE_NOT_FOUND");
+  });
+
+  it("cooks a recipe and writes a history record", async () => {
+    const session = await registerAndGetAuthHeader();
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Chicken",
+      quantity: 2,
+      unit: "piece"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Rice",
+      quantity: 300,
+      unit: "gram"
+    });
+
+    const recipe = await createRecipeForUser(session, "protein bowl");
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe.recipeId}/cook`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe("cooked");
+    expect(response.body.history.recipeId).toBe(recipe.recipeId);
+    expect(response.body.history.consumedIngredients.length).toBeGreaterThan(0);
+
+    const remainingInventory = await InventoryItem.find({ userId: session.user.id }).sort({ createdAt: 1 });
+    expect(remainingInventory).toHaveLength(1);
+    expect(remainingInventory[0].name).toBe("Rice");
+    expect(remainingInventory[0].quantity).toBe(100);
+
+    const historyInDatabase = await RecipeHistory.find({ userId: session.user.id });
+    expect(historyInDatabase).toHaveLength(1);
+  });
+
+  it("lists recipe history for the authenticated user", async () => {
+    const firstUser = await registerAndGetAuthHeader({
+      email: "history-first@example.com"
+    });
+    const secondUser = await registerAndGetAuthHeader({
+      email: "history-second@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", firstUser.authHeader).send({
+      name: "Egg",
+      quantity: 4,
+      unit: "piece"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", secondUser.authHeader).send({
+      name: "Milk",
+      quantity: 500,
+      unit: "ml"
+    });
+
+    const firstRecipe = await createRecipeForUser(firstUser, "history breakfast");
+    const secondRecipe = await createRecipeForUser(secondUser, "history drink");
+
+    await request(app).post(`/api/recipes/${firstRecipe.recipeId}/cook`).set("Authorization", firstUser.authHeader);
+    await request(app).post(`/api/recipes/${secondRecipe.recipeId}/cook`).set("Authorization", secondUser.authHeader);
+
+    const response = await request(app).get("/api/history").set("Authorization", firstUser.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.history).toHaveLength(1);
+    expect(response.body.history[0].recipeId).toBe(firstRecipe.recipeId);
+    expect(response.body.history[0].title).toContain("Mock");
+  });
+
+  it("rejects cooking when inventory is not sufficient anymore", async () => {
+    const session = await registerAndGetAuthHeader();
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Egg",
+      quantity: 2,
+      unit: "piece"
+    });
+
+    const recipe = await createRecipeForUser(session, "egg breakfast");
+
+    const currentInventory = await request(app).get("/api/inventory").set("Authorization", session.authHeader);
+    await request(app)
+      .delete(`/api/inventory/${currentInventory.body.items[0].id}`)
+      .set("Authorization", session.authHeader);
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe.recipeId}/cook`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(409);
+    expect(response.body.code).toBe("INSUFFICIENT_INVENTORY");
+  });
+
+  it("rejects history requests without token", async () => {
+    const response = await request(app).get("/api/history");
+
+    expect(response.status).toBe(401);
+    expect(response.body.code).toBe("AUTH_REQUIRED");
   });
 });

@@ -6,6 +6,7 @@ import morgan from "morgan";
 import { env } from "./config/env.js";
 import { authRouter } from "./routes/auth.routes.js";
 import { favoriteRouter } from "./routes/favorite.routes.js";
+import { historyRouter } from "./routes/history.routes.js";
 import { inventoryRouter } from "./routes/inventory.routes.js";
 import { recipeRouter } from "./routes/recipe.routes.js";
 import { notFoundHandler } from "./middleware/not-found.js";
@@ -42,6 +43,7 @@ export function createApp() {
 
   app.use("/api/auth", authRouter);
   app.use("/api/favorites", favoriteRouter);
+  app.use("/api/history", historyRouter);
   app.use("/api/inventory", inventoryRouter);
   app.use("/api/recipes", recipeRouter);
 

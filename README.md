@@ -16,9 +16,9 @@ Current implemented modules:
 - Inventory CRUD
 - Mock recipe generation
 - Favorites
+- Cook flow and history
 
 Not implemented yet:
-- Cook flow / recipe history
 - Expiration alerts
 - Image recognition
 - Real AI provider integration
@@ -121,6 +121,7 @@ Common error codes:
 - `RECIPE_NOT_FOUND`
 - `FAVORITE_ALREADY_EXISTS`
 - `FAVORITE_NOT_FOUND`
+- `INSUFFICIENT_INVENTORY`
 
 ## Endpoints
 
@@ -419,6 +420,48 @@ Response `200`:
 }
 ```
 
+### `POST /api/recipes/:id/cook`
+
+Marks a recipe as cooked, deducts matching ingredients from current inventory, and writes a history record.
+
+Response `200`:
+
+```json
+{
+  "status": "cooked",
+  "history": {
+    "id": "680000000000000000000040",
+    "recipeId": "680000000000000000000021",
+    "title": "Mock High Protein Dinner Recipe",
+    "prompt": "high protein dinner",
+    "consumedIngredients": [
+      {
+        "name": "Chicken",
+        "quantity": 2,
+        "unit": "piece"
+      },
+      {
+        "name": "Rice",
+        "quantity": 200,
+        "unit": "gram"
+      }
+    ],
+    "cookedAt": "2026-04-01T12:10:00.000Z",
+    "createdAt": "2026-04-01T12:10:00.000Z",
+    "updatedAt": "2026-04-01T12:10:00.000Z"
+  }
+}
+```
+
+If inventory is no longer enough, the API returns:
+
+```json
+{
+  "code": "INSUFFICIENT_INVENTORY",
+  "message": "Not enough inventory for: Chicken (2 piece)."
+}
+```
+
 ## Favorites
 
 Favorites are based on `recipeId`.
@@ -505,6 +548,42 @@ Response `200`:
 }
 ```
 
+## History
+
+### `GET /api/history`
+
+Lists cooked recipe history of the authenticated user.
+
+Response `200`:
+
+```json
+{
+  "history": [
+    {
+      "id": "680000000000000000000040",
+      "recipeId": "680000000000000000000021",
+      "title": "Mock High Protein Dinner Recipe",
+      "prompt": "high protein dinner",
+      "consumedIngredients": [
+        {
+          "name": "Chicken",
+          "quantity": 2,
+          "unit": "piece"
+        },
+        {
+          "name": "Rice",
+          "quantity": 200,
+          "unit": "gram"
+        }
+      ],
+      "cookedAt": "2026-04-01T12:10:00.000Z",
+      "createdAt": "2026-04-01T12:10:00.000Z",
+      "updatedAt": "2026-04-01T12:10:00.000Z"
+    }
+  ]
+}
+```
+
 ## Validation Rules
 
 Important validation rules currently in place:
@@ -539,6 +618,7 @@ Current test coverage includes:
 - inventory CRUD
 - mock recipe generation job flow
 - favorites flow
+- cook flow and history
 
 ## Notes
 
