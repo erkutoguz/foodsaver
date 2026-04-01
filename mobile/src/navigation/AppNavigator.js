@@ -9,21 +9,21 @@ import { RecipesScreen } from "../screens/RecipesScreen";
 
 const Tab = createBottomTabNavigator();
 
-const navigationTheme = {
-  ...DefaultTheme,
-  colors: {
-    ...DefaultTheme.colors,
-    background: colors.paper,
-    card: "#ffffff",
-    text: colors.ink,
-    border: colors.line,
-    primary: colors.brand
-  }
-};
-
 export function AppNavigator() {
   return (
-    <NavigationContainer theme={navigationTheme}>
+    <NavigationContainer
+      theme={{
+        ...DefaultTheme,
+        colors: {
+          ...DefaultTheme.colors,
+          background: colors.paper,
+          card: "#ffffff",
+          text: colors.ink,
+          border: colors.line,
+          primary: colors.brand
+        }
+      }}
+    >
       <Tab.Navigator
         screenOptions={{
           headerStyle: {
