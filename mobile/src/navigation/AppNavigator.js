@@ -65,7 +65,23 @@ export function AppNavigator() {
       {isAuthenticated ? (
         <MainTabs />
       ) : (
-        <Stack.Navigator>
+        <Stack.Navigator
+          screenOptions={{
+            headerStyle: {
+              backgroundColor: "#ffffff"
+            },
+            headerShadowVisible: false,
+            headerTintColor: colors.ink,
+            headerTitleStyle: {
+              color: colors.ink,
+              fontWeight: "700"
+            },
+            headerBackTitleVisible: false,
+            contentStyle: {
+              backgroundColor: colors.paper
+            }
+          }}
+        >
           <Stack.Screen
             name="Landing"
             component={LandingScreen}
