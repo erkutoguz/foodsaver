@@ -2,6 +2,7 @@ import { NavigationContainer, DefaultTheme } from "@react-navigation/native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { useEffect, useRef } from "react";
 import { useAuthStore } from "../store/auth-store";
 import { colors } from "../theme/colors";
 import { AuthScreen } from "../screens/AuthScreen";
@@ -58,9 +59,32 @@ function MainTabs() {
 export function AppNavigator() {
   const token = useAuthStore((state) => state.token);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
+  const isCheckingSession = useAuthStore((state) => state.isCheckingSession);
+  const checkSession = useAuthStore((state) => state.checkSession);
   const isAuthenticated = Boolean(token);
+  const checkedTokenRef = useRef(null);
 
-  if (!hasHydrated) {
+  useEffect(() => {
+    if (!hasHydrated) {
+      return;
+    }
+
+    if (!token) {
+      checkedTokenRef.current = null;
+      return;
+    }
+
+    if (checkedTokenRef.current === token) {
+      return;
+    }
+
+    checkedTokenRef.current = token;
+    checkSession().catch(() => {
+      checkedTokenRef.current = null;
+    });
+  }, [checkSession, hasHydrated, token]);
+
+  if (!hasHydrated || isCheckingSession) {
     return <AuthLoadingScreen />;
   }
 

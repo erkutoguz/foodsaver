@@ -44,28 +44,32 @@ export async function request(path, options = {}) {
   }
 }
 
-export function getRequest(path) {
+export function getRequest(path, options = {}) {
   return request(path, {
+    ...options,
     method: "GET"
   });
 }
 
-export function postRequest(path, body) {
+export function postRequest(path, body, options = {}) {
   return request(path, {
+    ...options,
     method: "POST",
     body
   });
 }
 
-export function patchRequest(path, body) {
+export function patchRequest(path, body, options = {}) {
   return request(path, {
+    ...options,
     method: "PATCH",
     body
   });
 }
 
-export function deleteRequest(path) {
+export function deleteRequest(path, options = {}) {
   return request(path, {
+    ...options,
     method: "DELETE"
   });
 }

@@ -1,18 +1,32 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../theme/colors";
 
-export function ScreenShell({ eyebrow, title, description, children }) {
+export function ScreenShell({ eyebrow, title, description, children, scrollable = false }) {
+  const body = (
+    <View style={[styles.container, scrollable ? styles.containerScrollable : styles.containerFill]}>
+      <View style={styles.hero}>
+        {eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}
+        <Text style={styles.title}>{title}</Text>
+        {description ? <Text style={styles.description}>{description}</Text> : null}
+      </View>
+      <View style={styles.content}>{children}</View>
+    </View>
+  );
+
   return (
     <SafeAreaView edges={["top"]} style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.hero}>
-          <Text style={styles.eyebrow}>{eyebrow}</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.description}>{description}</Text>
-        </View>
-        <View style={styles.content}>{children}</View>
-      </View>
+      {scrollable ? (
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {body}
+        </ScrollView>
+      ) : (
+        body
+      )}
     </SafeAreaView>
   );
 }
@@ -23,9 +37,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper
   },
   container: {
-    flex: 1,
     padding: 20,
     gap: 18
+  },
+  containerFill: {
+    flex: 1
+  },
+  containerScrollable: {
+    paddingBottom: 28
+  },
+  scrollContent: {
+    flexGrow: 1
   },
   hero: {
     backgroundColor: colors.ink,

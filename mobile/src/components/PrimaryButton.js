@@ -1,17 +1,35 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { colors } from "../theme/colors";
 
-export function PrimaryButton({ label, onPress, variant = "primary" }) {
+export function PrimaryButton({
+  label,
+  onPress,
+  variant = "primary",
+  disabled = false,
+  loading = false
+}) {
+  const isDisabled = disabled || loading;
+
   return (
     <Pressable
       onPress={onPress}
+      disabled={isDisabled}
       style={({ pressed }) => [
         styles.button,
         variant === "secondary" && styles.buttonSecondary,
+        isDisabled && styles.buttonDisabled,
         pressed && styles.buttonPressed
       ]}
     >
-      <Text style={[styles.label, variant === "secondary" && styles.labelSecondary]}>{label}</Text>
+      <View style={styles.inner}>
+        {loading ? (
+          <ActivityIndicator
+            size="small"
+            color={variant === "secondary" ? colors.ink : "#ffffff"}
+          />
+        ) : null}
+        <Text style={[styles.label, variant === "secondary" && styles.labelSecondary]}>{label}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -30,6 +48,14 @@ const styles = StyleSheet.create({
   },
   buttonPressed: {
     opacity: 0.88
+  },
+  buttonDisabled: {
+    opacity: 0.7
+  },
+  inner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
   },
   label: {
     color: "#ffffff",
