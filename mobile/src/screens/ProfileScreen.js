@@ -1,11 +1,10 @@
-import {  ScreenShell } from "../components/ScreenShell";
+import { InfoCard } from "../components/InfoCard";
+import { ScreenShell } from "../components/ScreenShell";
 
 export function ProfileScreen() {
   return (
     <ScreenShell
-      eyebrow=""
-      title="More"
-      description=""
+     
     >
      
     </ScreenShell>
