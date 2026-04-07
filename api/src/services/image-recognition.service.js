@@ -1,4 +1,4 @@
-import { analyzeMockImage } from "../adapters/mock-image-recognition.provider.js";
+import { analyzeImage as analyzeImageAdapter } from "../adapters/image-recognition.provider.js";
 import {
   createInventoryItemRecord,
   findInventoryItemByUserIdNameAndUnit,
@@ -30,7 +30,7 @@ function toConfirmedInventoryItemResponse(item, action) {
 }
 
 export async function analyzeImage(_userId, payload) {
-  const result = await analyzeMockImage(payload);
+  const result = await analyzeImageAdapter(payload);
 
   return {
     analysis: {
