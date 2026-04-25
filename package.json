@@ -1,0 +1,13 @@
+{
+  "name": "food-saver-ai",
+  "private": true,
+  "scripts": {
+    "dev": "bash -lc 'npm --prefix api run dev & npm --prefix mobile run start & wait'",
+    "dev:api": "npm --prefix api run dev",
+    "dev:mobile": "npm --prefix mobile run start",
+    "android": "npm --prefix mobile run android",
+    "ios": "npm --prefix mobile run ios",
+    "web": "npm --prefix mobile run web",
+    "test:api": "npm --prefix api test"
+  }
+}
