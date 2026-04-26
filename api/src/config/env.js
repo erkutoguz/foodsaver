@@ -8,7 +8,7 @@ function toNumber(value, fallback) {
 }
 
 function normalizeAiProvider(value) {
-  return value === "gemini" ? "gemini" : "mock";
+  return value === "ollama" ? "ollama" : "mock";
 }
 
 export const env = {
@@ -21,6 +21,6 @@ export const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
   RECIPE_JOB_DELAY_MS: toNumber(process.env.RECIPE_JOB_DELAY_MS, 150),
   AI_PROVIDER: normalizeAiProvider(process.env.AI_PROVIDER),
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY || "",
-  GEMINI_MODEL: process.env.GEMINI_MODEL || "gemini-2.5-flash"
+  OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || "http://127.0.0.1:11434",
+  OLLAMA_MODEL: process.env.OLLAMA_MODEL || ""
 };

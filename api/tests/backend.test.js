@@ -606,26 +606,6 @@ describe("backend", () => {
     expect(response.body.code).toBe("AUTH_REQUIRED");
   });
 
-  it("throws a clear error when gemini recipe provider is enabled without an api key", async () => {
-    const { env } = await import("../src/config/env.js");
-    const { generateRecipe } = await import("../src/adapters/recipe.provider.js");
-    const originalProvider = env.AI_PROVIDER;
-    const originalApiKey = env.GEMINI_API_KEY;
-
-    env.AI_PROVIDER = "gemini";
-    env.GEMINI_API_KEY = "";
-
-    await expect(
-      generateRecipe({
-        prompt: "quick lunch",
-        inventoryItems: []
-      })
-    ).rejects.toThrow("GEMINI_API_KEY");
-
-    env.AI_PROVIDER = originalProvider;
-    env.GEMINI_API_KEY = originalApiKey;
-  });
-
   it("creates a mock recipe job and returns the generated recipe", async () => {
     const session = await registerAndGetAuthHeader();
 
