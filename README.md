@@ -16,7 +16,7 @@ Current implemented modules:
 - Inventory CRUD
 - Inventory expiration summary
 - Mock image recognition
-- Recipe generation with mock or Gemini provider
+- Recipe generation with mock or Ollama provider
 - Favorites
 - Cook flow and history
 
@@ -77,16 +77,18 @@ JWT_SECRET=dev-secret-change-me
 JWT_EXPIRES_IN=7d
 RECIPE_JOB_DELAY_MS=150
 AI_PROVIDER=mock
-GEMINI_API_KEY=
-GEMINI_MODEL=gemini-2.5-flash
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=
 ```
 
 Notes:
 - `MONGODB_URI` should point to your real MongoDB Atlas database in development.
 - `RECIPE_JOB_DELAY_MS` controls how long the mock recipe job waits before processing.
 - `AI_PROVIDER=mock` keeps the current test-friendly behavior.
-- To use Gemini, set `AI_PROVIDER=gemini` and provide `GEMINI_API_KEY`.
-- `GEMINI_MODEL` defaults to `gemini-2.5-flash`.
+- To use Ollama, install Ollama, make sure the local service is running, set `AI_PROVIDER=ollama`, and provide `OLLAMA_MODEL`.
+- `OLLAMA_BASE_URL` defaults to `http://127.0.0.1:11434`.
+- Example local models include `llama3.2`, `phi3`, and `qwen2.5`.
+- If recipe generation fails, first check that Ollama is running and that the model has already been pulled locally.
 
 ## Base URL
 
@@ -514,7 +516,7 @@ Response `200`:
 ## Recipes
 
 Important:
-- Recipe generation supports `mock` and `gemini` providers.
+- Recipe generation supports `mock` and `ollama` providers.
 - Default behavior is still `mock`.
 - The API still behaves like an async job system.
 
@@ -813,13 +815,18 @@ Current test coverage includes:
 - inventory CRUD
 - mock image recognition
 - mock recipe generation job flow
-- gemini config failure path
+- ollama adapter failure paths
 - favorites flow
 - cook flow and history
 
 ## Notes
 
-- The recipe generation module uses `mock` by default and can be switched to Gemini with env variables.
+- The recipe generation module uses `mock` by default and can be switched to Ollama with env variables.
+- When using Ollama locally, common setup issues are:
+  - Ollama service is not running
+  - the configured model was not pulled yet
+  - `OLLAMA_BASE_URL` points to the wrong host or port
+  - the model returned empty or invalid structured JSON
 - The image recognition module currently uses mock data on purpose.
 - The API is written in plain JavaScript with ESM.
 - The backend is intentionally kept straightforward and not over-engineered.

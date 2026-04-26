@@ -1,7 +1,7 @@
 # Food Saver AI Codebase Familiarity Report
 
-Last updated: 2026-04-25
-Scope of this update: Initial codebase inspection only. No feature work was implemented.
+Last updated: 2026-04-26
+Scope of this update: Initial codebase inspection, root startup scripts, backend Ollama recipe provider migration, and mobile recipe generation UI wiring.
 
 ## Project Source of Truth Notes
 - This file is now the project progress source of truth.
@@ -54,7 +54,7 @@ Confirmed from code:
   - `cors`, `helmet`, `express-rate-limit`, `morgan`
   - [api/src/app.js](/home/erkut/bitirme/api/src/app.js)
 - AI services/APIs:
-  - Optional Gemini recipe provider via `@google/genai`: [api/src/adapters/gemini-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/gemini-recipe.provider.js)
+  - Optional local Ollama recipe provider via HTTP API: [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
   - Mock recipe provider: [api/src/adapters/mock-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/mock-recipe.provider.js)
   - Mock image recognition provider: [api/src/adapters/mock-image-recognition.provider.js](/home/erkut/bitirme/api/src/adapters/mock-image-recognition.provider.js)
 - Testing:
@@ -163,7 +163,8 @@ Screens currently present:
   - real inventory fetch and create flow
   - displays expiry status from backend response
 - [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
-  - placeholder text only
+  - real prompt-to-result recipe generation flow
+  - creates async recipe jobs, polls job status, and renders recipe details
 - [mobile/src/screens/ProfileScreen.js](/home/erkut/bitirme/mobile/src/screens/ProfileScreen.js)
   - shows current user from store
   - supports sign out
@@ -193,9 +194,12 @@ API client usage:
   - [mobile/src/services/auth-service.js](/home/erkut/bitirme/mobile/src/services/auth-service.js)
 - Inventory service wired:
   - [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
+- Recipe service wired:
+  - [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
 - API paths for recipes, favorites, history, and image recognition exist in config:
   - [mobile/src/config/api.js](/home/erkut/bitirme/mobile/src/config/api.js)
-  - but no corresponding mobile service files or screen integrations were found
+  - recipe paths are now used by the mobile UI
+  - favorites, history, and image recognition still have no mobile integrations
 
 Image upload/camera usage:
 
@@ -411,16 +415,16 @@ Implemented or partially implemented:
   - not implemented
 - OpenAI usage:
   - none found
-- Gemini usage:
-  - optional recipe generation provider exists
-  - [api/src/adapters/gemini-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/gemini-recipe.provider.js)
+- Ollama usage:
+  - optional local recipe generation provider exists
+  - [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
 
 Clear status:
 
 - AI exists, but only part of it is real.
-- Recipe generation can be real through Gemini if configured.
+- Recipe generation can be real through a local Ollama model if configured.
 - Image recognition is still mock-only.
-- Mobile app does not yet expose recipe generation, favorites, history, or image recognition flows.
+- Mobile app now exposes recipe generation, but still does not expose favorites, history, or image recognition flows.
 
 ## 8. Authentication & User Flow
 Registration/login:
@@ -522,10 +526,10 @@ MongoDB:
 
 AI APIs:
 
-- Gemini requires:
-  - `AI_PROVIDER=gemini`
-  - `GEMINI_API_KEY`
-  - optional `GEMINI_MODEL`
+- Ollama requires:
+  - `AI_PROVIDER=ollama`
+  - `OLLAMA_BASE_URL`
+  - `OLLAMA_MODEL`
 
 File storage:
 
@@ -641,6 +645,15 @@ Expo checks:
   - `Starting project at /home/erkut/bitirme/mobile`
 - No ready banner was captured in the short inspection window
 - No automated Expo doctor/check script is defined in repo scripts
+- Additional command attempted:
+  - `cd mobile && npm run web`
+- Observed output:
+  - `Starting project at /home/erkut/bitirme/mobile`
+- Additional command attempted:
+  - `cd mobile && npx expo export --platform web`
+- Result:
+  - failed because web-only Expo dependencies are not installed in this repo
+  - missing packages reported: `react-dom`, `react-native-web`
 
 Root combined startup check:
 
@@ -659,26 +672,26 @@ Root combined startup check:
 ## 13. Current Implementation Status
 | Area | Status | Notes |
 |---|---|---|
-| Mobile frontend | partial | Auth flow and pantry screen are real; home/recipes/profile are partly placeholder screens. |
+| Mobile frontend | partial | Auth, pantry, and recipe generation flows are real; home is still mostly static and profile is still lightweight. |
 | Express backend | implemented | Core API is present in `api/src/app.js` and routed modules. |
 | MongoDB models | implemented | Users, inventory, recipe jobs, recipes, favorites, and history models exist. |
 | Authentication | implemented | JWT auth with register/login/me and persisted mobile session. |
 | Food inventory | implemented | Backend CRUD exists; mobile supports list/create only. |
 | Expiry tracking | implemented | Stored on inventory items and exposed through summary/expiring endpoints. |
 | AI recognition | partial | Backend only, mock provider only, no real CV pipeline, no mobile UI. |
-| Recipe suggestions | partial | Backend job flow exists with mock/Gemini providers; mobile UI not wired. |
+| Recipe suggestions | implemented | Backend async job flow exists with mock/Ollama providers and mobile can now generate and view recipe results. |
 | Notifications | missing | No backend delivery logic or mobile notification integration found. |
 | Image upload/camera | missing | No camera/image picker on mobile and no multipart upload on backend. |
-| API integration | partial | Mobile only integrates auth and inventory services. |
+| API integration | partial | Mobile integrates auth, inventory, and recipe generation/detail polling; favorites/history/image recognition remain unwired. |
 | Tests | partial | Backend tests exist and pass; no frontend tests/lint/format coverage. |
 | Deployment/config | partial | Basic env examples exist; no Docker, CI, or Expo EAS config found. |
 
 ## 14. Problems, Risks, and Technical Debt
 - Hardcoded LAN API fallback in [mobile/src/config/env.js](/home/erkut/bitirme/mobile/src/config/env.js) and [mobile/.env.example](/home/erkut/bitirme/mobile/.env.example) makes local setup environment-specific.
-- Mobile recipe flow is not implemented despite backend support. [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js) is placeholder UI only.
 - Mobile home dashboard is static copy, not data-driven from `/api/inventory/summary`, `/api/history`, or recipe endpoints. [mobile/src/screens/HomeScreen.js](/home/erkut/bitirme/mobile/src/screens/HomeScreen.js)
 - Mobile profile screen references favorites/history/settings conceptually, but no such data is loaded. [mobile/src/screens/ProfileScreen.js](/home/erkut/bitirme/mobile/src/screens/ProfileScreen.js)
 - Mobile inventory service only supports list/create, while backend also supports summary, expiring, update, and delete. [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
+- Mobile recipe polling is screen-local only; if the user leaves the screen or the app is restarted, in-flight recipe jobs are not resumed by the client. [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
 - Recipe jobs run through in-process `setTimeout`, so queued work can be lost on server restart and does not scale to multiple instances. [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js)
 - Image recognition is not real image analysis. It matches keywords from text input and returns canned detections. [api/src/adapters/mock-image-recognition.provider.js](/home/erkut/bitirme/api/src/adapters/mock-image-recognition.provider.js)
 - No multipart upload/file pipeline exists for image recognition; backend accepts JSON only. [api/src/routes/image-recognition.routes.js](/home/erkut/bitirme/api/src/routes/image-recognition.routes.js), [api/src/validators/image-recognition.schemas.js](/home/erkut/bitirme/api/src/validators/image-recognition.schemas.js)
@@ -691,26 +704,27 @@ Root combined startup check:
 ## 15. Recommended Next Steps
 Suggested order, without implementing yet:
 
-1. Finish the mobile-to-backend feature bridge:
-   - wire recipes, favorites, history, and expiry summary into the mobile app
-2. Replace placeholder screens with real user flows:
-   - `Home`
-   - `Recipes`
-   - recipe detail/cook
-   - favorites/history views
+1. Finish the remaining mobile-to-backend feature bridge:
+   - wire favorites, history, and expiry summary into the mobile app
+2. Expand the recipe flow from read-only generation to action-based usage:
+   - cook-from-recipe flow
+   - favorites/history entry points
 3. Expand mobile inventory management:
    - edit item
    - delete item
    - expiring summary
-4. Stabilize environment setup:
+4. Replace static mobile surfaces with real backend data:
+   - `Home`
+   - richer `Profile`
+5. Stabilize environment setup:
    - remove hardcoded mobile API IP fallback
    - improve setup documentation
-5. Decide AI direction:
+6. Decide AI direction:
    - keep mock flows for demos, or move image recognition to a real provider
-6. Add notifications/reminders if they are core to the product goal
-7. Improve backend job robustness:
+7. Add notifications/reminders if they are core to the product goal
+8. Improve backend job robustness:
    - replace `setTimeout` recipe jobs with a proper queue/background worker if needed
-8. Add frontend tests and repo-wide quality scripts
+9. Add frontend tests and repo-wide quality scripts
 
 ## 16. Files Reviewed
 Main files inspected for this report:
@@ -754,7 +768,7 @@ Main files inspected for this report:
 - [api/src/models/favorite.model.js](/home/erkut/bitirme/api/src/models/favorite.model.js)
 - [api/src/models/recipe-history.model.js](/home/erkut/bitirme/api/src/models/recipe-history.model.js)
 - [api/src/adapters/recipe.provider.js](/home/erkut/bitirme/api/src/adapters/recipe.provider.js)
-- [api/src/adapters/gemini-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/gemini-recipe.provider.js)
+- [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
 - [api/src/adapters/mock-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/mock-recipe.provider.js)
 - [api/src/adapters/mock-image-recognition.provider.js](/home/erkut/bitirme/api/src/adapters/mock-image-recognition.provider.js)
 - [api/src/validators/auth.schemas.js](/home/erkut/bitirme/api/src/validators/auth.schemas.js)
@@ -763,6 +777,7 @@ Main files inspected for this report:
 - [api/src/validators/favorite.schemas.js](/home/erkut/bitirme/api/src/validators/favorite.schemas.js)
 - [api/src/validators/image-recognition.schemas.js](/home/erkut/bitirme/api/src/validators/image-recognition.schemas.js)
 - [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+- [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
 - [mobile/package.json](/home/erkut/bitirme/mobile/package.json)
 - [mobile/app.json](/home/erkut/bitirme/mobile/app.json)
 - [mobile/.env.example](/home/erkut/bitirme/mobile/.env.example)
@@ -792,11 +807,26 @@ What changed:
 
 - Created and populated [STATE.md](/home/erkut/bitirme/STATE.md) with the initial familiarity report.
 - Added root helper scripts in [package.json](/home/erkut/bitirme/package.json) so backend and mobile can be started from one command for manual testing.
+- Replaced the Gemini recipe provider path with a local Ollama provider for backend recipe generation.
+- Added a focused Ollama adapter test suite and kept the existing mock-based recipe integration flow intact.
+- Added the first real mobile recipe generation UI flow with async job polling and recipe detail rendering.
 
 Files changed:
 
 - [package.json](/home/erkut/bitirme/package.json)
 - [STATE.md](/home/erkut/bitirme/STATE.md)
+- [README.md](/home/erkut/bitirme/README.md)
+- [api/.env.example](/home/erkut/bitirme/api/.env.example)
+- [api/package.json](/home/erkut/bitirme/api/package.json)
+- [api/package-lock.json](/home/erkut/bitirme/api/package-lock.json)
+- [api/src/config/env.js](/home/erkut/bitirme/api/src/config/env.js)
+- [api/src/adapters/recipe.provider.js](/home/erkut/bitirme/api/src/adapters/recipe.provider.js)
+- [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
+- [api/src/adapters/gemini-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/gemini-recipe.provider.js)
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+- [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
+- [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
 
 Commands run:
 
@@ -808,6 +838,14 @@ Commands run:
 - `cd api && npm test`
 - `cd mobile && npm run start`
 - `npm run dev`
+- `rg -n "gemini|GEMINI|AI_PROVIDER=mock|recipe generation with mock or Gemini provider" README.md api`
+- `cd api && npm uninstall @google/genai`
+- `cd api && npm test`
+- multiple `sed -n` reads across `mobile/src/components`, `mobile/src/screens`, and `mobile/src/services`
+- `node -e "import('./mobile/src/services/recipe-service.js')..."`
+- `node -e "import('./mobile/src/screens/RecipesScreen.js')..."`
+- `cd mobile && npm run web`
+- `cd mobile && npx expo export --platform web`
 
 Test results:
 
@@ -818,17 +856,34 @@ Test results:
   - mobile start was triggered successfully
   - backend start was triggered successfully
   - backend then failed on MongoDB DNS/SRV connectivity for the configured host
+- Ollama adapter unit tests passed: `15/15`.
+- Full backend suite passed after rerunning outside sandbox: `55/55` tests passed across `2` test files.
+- Mobile recipe UI has no automated tests configured in the repo.
+- `cd mobile && npm run web` reached Expo startup output: `Starting project at /home/erkut/bitirme/mobile`.
+- `cd mobile && npx expo export --platform web` did not validate the new screen because this repo does not include Expo web dependencies:
+  - missing `react-dom`
+  - missing `react-native-web`
+- Direct Node `import()` checks against mobile source were not meaningful validation for this app shape:
+  - one failed on extensionless React Native module resolution
+  - one failed on JSX parsing in plain Node without Expo/Babel transforms
 
 Remaining issues:
 
-- Mobile feature coverage trails backend capability.
+- Mobile feature coverage still trails backend capability outside auth, pantry, and basic recipe generation.
 - AI image recognition is mock-only.
 - Notification flow is missing.
 - Env and deployment setup need hardening.
 - Manual end-to-end local testing currently depends on fixing backend `MONGODB_URI` / MongoDB reachability first.
+- Manual Ollama recipe generation still depends on a running local Ollama service and a pulled local model referenced by `OLLAMA_MODEL`.
+- Mobile recipe polling does not resume across screen exits or app restarts.
+- Mobile still has no frontend automated test/lint/format pipeline.
 
 Next recommended task:
 
-- Fix local backend environment so `npm run dev` can fully come up:
-  - verify the active backend `.env`
-  - point `MONGODB_URI` to a reachable local MongoDB or working Atlas URI
+ - Fix local backend environment so `npm run dev` can fully come up:
+   - verify the active backend `.env`
+   - point `MONGODB_URI` to a reachable local MongoDB or working Atlas URI
+ - After MongoDB is reachable, manually validate the new mobile `Recipes` tab end-to-end with `AI_PROVIDER=ollama`.
+ - Then wire the next highest-value mobile feature:
+   - recipe cook action
+   - favorites/history views
