@@ -65,7 +65,10 @@ function buildSystemMessage() {
     "Return ONLY valid JSON that matches the provided schema.",
     "Do not include any text outside JSON.",
     "Do not include explanations, comments, reasoning text, or markdown.",
-    "Your full response must be a single JSON object with no prose before or after it."
+    "Your full response must be a single JSON object with no prose before or after it.",
+    "The user prompt may be written in any language, but all generated recipe content must be in English.",
+    "Do not translate or rename JSON keys. Keep JSON keys exactly as defined by the schema.",
+    "Only generated field values may vary, and those generated field values must be in English."
   ].join(" ");
 }
 
@@ -82,7 +85,10 @@ function buildUserMessage({ prompt, inventoryItems }) {
     "- Use only these units for ingredients: piece, gram, ml.",
     "- Keep the recipe realistic and simple for a student user.",
     "- Return estimatedTimeMinutes and calories as numbers.",
-    "- Put unavailable but useful items into missingIngredients."
+    "- Put unavailable but useful items into missingIngredients.",
+    "- Interpret the user prompt even if it is not in English.",
+    "- Always return English values for title, ingredient names, steps, and missingIngredients.",
+    "- Do not translate JSON keys; only generate English field values."
   ].join("\n");
 }
 

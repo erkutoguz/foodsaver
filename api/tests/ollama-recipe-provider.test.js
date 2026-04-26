@@ -101,6 +101,40 @@ describe("ollama recipe provider", () => {
     );
   });
 
+  it("instructs ollama to keep recipe content in english without translating schema keys", async () => {
+    globalThis.fetch.mockResolvedValue(
+      buildFetchResponse({
+        message: {
+          content: JSON.stringify(buildRecipeContent())
+        }
+      })
+    );
+
+    await generateOllamaRecipe({
+      prompt: "yüksek proteinli akşam yemeği",
+      inventoryItems: [
+        {
+          name: "Chicken",
+          quantity: 300,
+          unit: "gram",
+          category: "protein",
+          expiresAt: null
+        }
+      ]
+    });
+
+    const [, requestOptions] = globalThis.fetch.mock.calls[0];
+    const requestBody = JSON.parse(requestOptions.body);
+    const [systemMessage, userMessage] = requestBody.messages;
+
+    expect(systemMessage.content).toContain("all generated recipe content must be in English");
+    expect(systemMessage.content).toContain("Do not translate or rename JSON keys");
+    expect(userMessage.content).toContain("Interpret the user prompt even if it is not in English.");
+    expect(userMessage.content).toContain("Always return English values for title, ingredient names, steps, and missingIngredients.");
+    expect(userMessage.content).toContain("Do not translate JSON keys; only generate English field values.");
+    expect(userMessage.content).toContain("yüksek proteinli akşam yemeği");
+  });
+
   it("does not leak unexpected extra fields from the model output", async () => {
     globalThis.fetch.mockResolvedValue(
       buildFetchResponse({

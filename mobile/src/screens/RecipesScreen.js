@@ -47,7 +47,7 @@ export function RecipesScreen() {
     pollInFlightRef.current = false;
   }
 
-  function resetToFormMode({ preservePrompt }) {
+  function resetToFormMode() {
     clearPollingTimers();
     activeJobIdRef.current = null;
     setJobId("");
@@ -59,10 +59,7 @@ export function RecipesScreen() {
     setIsCreatingJob(false);
     setIsPolling(false);
     setIsFetchingRecipe(false);
-
-    if (!preservePrompt) {
-      setPrompt("");
-    }
+    setPrompt("");
   }
 
   async function loadRecipeDetail(recipeId, expectedJobId) {
@@ -316,11 +313,6 @@ export function RecipesScreen() {
                 onPress={handleGenerateRecipe}
                 disabled={isGenerateDisabled}
               />
-              <PrimaryButton
-                label="Back to prompt"
-                variant="secondary"
-                onPress={() => resetToFormMode({ preservePrompt: true })}
-              />
             </View>
           </View>
         </InfoCard>
@@ -340,9 +332,6 @@ export function RecipesScreen() {
                 </View>
                 <View style={styles.metaPill}>
                   <Text style={styles.metaPillText}>{recipe.calories} cal</Text>
-                </View>
-                <View style={styles.providerPill}>
-                  <Text style={styles.providerText}>{recipe.provider}</Text>
                 </View>
               </View>
             </View>
@@ -384,12 +373,7 @@ export function RecipesScreen() {
           <View style={styles.buttonStack}>
             <PrimaryButton
               label="Generate another"
-              onPress={() => resetToFormMode({ preservePrompt: false })}
-            />
-            <PrimaryButton
-              label="Back to prompt"
-              variant="secondary"
-              onPress={() => resetToFormMode({ preservePrompt: true })}
+              onPress={resetToFormMode}
             />
           </View>
         </>
@@ -471,18 +455,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 13,
     fontWeight: "700"
-  },
-  providerPill: {
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: colors.ink
-  },
-  providerText: {
-    color: "#ffffff",
-    fontSize: 12,
-    fontWeight: "700",
-    textTransform: "uppercase"
   },
   listSection: {
     gap: 10

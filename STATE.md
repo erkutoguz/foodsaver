@@ -810,6 +810,8 @@ What changed:
 - Replaced the Gemini recipe provider path with a local Ollama provider for backend recipe generation.
 - Added a focused Ollama adapter test suite and kept the existing mock-based recipe integration flow intact.
 - Added the first real mobile recipe generation UI flow with async job polling and recipe detail rendering.
+- Tightened the Ollama prompt so user prompts may be any language while generated recipe content is instructed to stay in English.
+- Simplified the mobile recipe screen by removing the provider badge and removing all `Back to prompt` actions.
 
 Files changed:
 
@@ -846,6 +848,7 @@ Commands run:
 - `node -e "import('./mobile/src/screens/RecipesScreen.js')..."`
 - `cd mobile && npm run web`
 - `cd mobile && npx expo export --platform web`
+- `cd api && npx vitest run tests/ollama-recipe-provider.test.js`
 
 Test results:
 
@@ -866,6 +869,7 @@ Test results:
 - Direct Node `import()` checks against mobile source were not meaningful validation for this app shape:
   - one failed on extensionless React Native module resolution
   - one failed on JSX parsing in plain Node without Expo/Babel transforms
+- Targeted Ollama adapter tests passed after the English-output prompt update: `16/16`.
 
 Remaining issues:
 
