@@ -818,6 +818,7 @@ What changed:
 - Replaced the pantry expiration text input with a native date-time picker and now submit/display expiration values with time included.
 - Added mobile pantry item deletion with native confirmation, per-item loading, and local state removal only after backend success.
 - Updated the Home dashboard to refresh on tab focus so pantry changes made in the Pantry tab appear after returning to Home.
+- Refined the recipe generation progress UI to remove technical job ID text and show a more user-friendly loading/status presentation.
 
 Files changed:
 
@@ -868,6 +869,7 @@ Commands run:
 - multiple `sed -n` reads across `mobile/src/screens/InventoryScreen.js`, `mobile/src/services/inventory-service.js`, and `mobile/src/lib/api-client.js`
 - `rg -n "deleteInventoryItem|DELETE /api/inventory|deleteRequest" api mobile -S`
 - multiple `sed -n` reads across `mobile/src/screens/HomeScreen.js`, `mobile/src/navigation/AppNavigator.js`, and `mobile/package.json`
+- multiple `sed -n` reads across `mobile/src/screens/RecipesScreen.js`, `mobile/src/components/InfoCard.js`, and `mobile/src/theme/colors.js`
 
 Test results:
 
@@ -896,6 +898,7 @@ Test results:
 - Pantry item delete changes were not covered by automated tests because the mobile app still has no frontend test setup in the repo.
 - Pantry item delete behavior was verified only by code inspection in this task; device/emulator manual verification is still pending.
 - Home dashboard focus-refresh change was not covered by automated tests because the mobile app still has no frontend test setup in the repo.
+- Recipe progress UI cleanup was not covered by automated tests because the mobile app still has no frontend test setup in the repo.
 
 Remaining issues:
 
@@ -910,6 +913,7 @@ Remaining issues:
 - The new pantry date-time picker flow still needs manual device/emulator verification on Android and iOS.
 - The new pantry delete flow still needs manual device/emulator verification, especially confirmation alert behavior and per-item loading feedback.
 - The Home dashboard refresh-on-focus behavior still needs manual device/emulator verification after pantry create/delete actions.
+- The updated recipe progress screen still needs manual device/emulator verification to confirm spacing, readability, and stage-state transitions during live polling.
 
 Next recommended task:
 
@@ -920,5 +924,6 @@ Next recommended task:
  - Then wire the next highest-value mobile feature:
    - manually validate Home refresh after pantry create/delete on device/emulator
    - manually validate pantry delete flow on device/emulator
+   - manually validate recipe generation progress UI on device/emulator
    - recipe cook action
    - favorites/history views

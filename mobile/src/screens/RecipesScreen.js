@@ -19,7 +19,6 @@ export function RecipesScreen() {
   const token = useAuthStore((state) => state.token);
   const [prompt, setPrompt] = useState("");
   const [promptError, setPromptError] = useState("");
-  const [jobId, setJobId] = useState("");
   const [jobStatus, setJobStatus] = useState("");
   const [recipe, setRecipe] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -50,7 +49,6 @@ export function RecipesScreen() {
   function resetToFormMode() {
     clearPollingTimers();
     activeJobIdRef.current = null;
-    setJobId("");
     setJobStatus("");
     setRecipe(null);
     setErrorMessage("");
@@ -191,7 +189,6 @@ export function RecipesScreen() {
     activeJobIdRef.current = null;
     setPrompt(trimmedPrompt);
     setPromptError("");
-    setJobId("");
     setJobStatus("");
     setRecipe(null);
     setErrorMessage("");
@@ -213,7 +210,6 @@ export function RecipesScreen() {
         return;
       }
 
-      setJobId(result.jobId);
       setJobStatus(result.status || "queued");
       setViewMode("progress");
       startPolling(result.jobId);
@@ -247,6 +243,8 @@ export function RecipesScreen() {
     : jobStatus === "processing"
       ? "We are turning your pantry into a simple, practical recipe."
       : "Your request is queued and waiting to be processed.";
+  const progressStage = getProgressStage(jobStatus, isFetchingRecipe);
+  const progressBadgeLabel = getProgressBadgeLabel(jobStatus, isFetchingRecipe);
 
   return (
     <ScreenShell
@@ -292,10 +290,33 @@ export function RecipesScreen() {
       {viewMode === "progress" ? (
         <InfoCard title="Generating your recipe" tone="accent">
           <View style={styles.progressBox}>
-            <ActivityIndicator size="large" color={colors.brand} />
+            <View style={styles.progressOrb}>
+              <ActivityIndicator size="large" color={colors.brand} />
+            </View>
+            <View style={styles.progressBadge}>
+              <Text style={styles.progressBadgeText}>{progressBadgeLabel}</Text>
+            </View>
             <Text style={styles.progressTitle}>{getProgressLabel(jobStatus)}</Text>
             <Text style={styles.progressText}>{progressMessage}</Text>
-            {jobId ? <Text style={styles.jobMeta}>Job ID: {jobId}</Text> : null}
+
+            <View style={styles.stageRow}>
+              {[
+                { key: "queued", label: "Queued" },
+                { key: "processing", label: "Cooking ideas" },
+                { key: "ready", label: "Finishing up" }
+              ].map((stage, index) => {
+                const isActive = progressStage >= index;
+
+                return (
+                  <View key={stage.key} style={styles.stageItem}>
+                    <View style={[styles.stageDot, isActive && styles.stageDotActive]} />
+                    <Text style={[styles.stageLabel, isActive && styles.stageLabelActive]}>
+                      {stage.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
           </View>
         </InfoCard>
       ) : null}
@@ -390,6 +411,30 @@ function getProgressLabel(status) {
   return "Recipe request queued";
 }
 
+function getProgressStage(status, isFetchingRecipe) {
+  if (isFetchingRecipe) {
+    return 2;
+  }
+
+  if (status === "processing") {
+    return 1;
+  }
+
+  return 0;
+}
+
+function getProgressBadgeLabel(status, isFetchingRecipe) {
+  if (isFetchingRecipe) {
+    return "Finalizing";
+  }
+
+  if (status === "processing") {
+    return "In progress";
+  }
+
+  return "Queued";
+}
+
 const styles = StyleSheet.create({
   section: {
     gap: 14
@@ -406,7 +451,30 @@ const styles = StyleSheet.create({
   },
   progressBox: {
     alignItems: "center",
-    gap: 12
+    gap: 14
+  },
+  progressOrb: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe"
+  },
+  progressBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: "#bfdbfe"
+  },
+  progressBadgeText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: "800"
   },
   progressTitle: {
     color: colors.ink,
@@ -420,10 +488,35 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: "center"
   },
-  jobMeta: {
+  stageRow: {
+    width: "100%",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    paddingTop: 4
+  },
+  stageItem: {
+    flex: 1,
+    alignItems: "center",
+    gap: 8
+  },
+  stageDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: "#cbd5e1"
+  },
+  stageDotActive: {
+    backgroundColor: colors.brand
+  },
+  stageLabel: {
     color: colors.slate,
-    fontSize: 12,
-    lineHeight: 18
+    fontSize: 11,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  stageLabelActive: {
+    color: colors.ink
   },
   errorText: {
     color: colors.tomato,
