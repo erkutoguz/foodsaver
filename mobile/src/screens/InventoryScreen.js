@@ -1,5 +1,5 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { FormField } from "../components/FormField";
 import { InfoCard } from "../components/InfoCard";
@@ -7,6 +7,7 @@ import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenShell } from "../components/ScreenShell";
 import {
   createInventoryRequest,
+  deleteInventoryItemRequest,
   getInventoryRequest
 } from "../services/inventory-service";
 import { useAuthStore } from "../store/auth-store";
@@ -26,6 +27,7 @@ export function InventoryScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [deletingItemId, setDeletingItemId] = useState(null);
 
   async function loadInventory() {
     if (!token) {
@@ -97,6 +99,45 @@ export function InventoryScreen() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleDeleteItem(item) {
+    if (!token || deletingItemId === item.id) {
+      return;
+    }
+
+    setDeletingItemId(item.id);
+
+    try {
+      await deleteInventoryItemRequest(token, item.id);
+      setItems((currentItems) => currentItems.filter((currentItem) => currentItem.id !== item.id));
+    } catch (error) {
+      Alert.alert("Could not delete item", error.message || "Please try again.");
+    } finally {
+      setDeletingItemId((currentDeletingItemId) =>
+        currentDeletingItemId === item.id ? null : currentDeletingItemId
+      );
+    }
+  }
+
+  function confirmDeleteItem(item) {
+    Alert.alert(
+      "Delete item",
+      `Are you sure you want to remove ${item.name} from your pantry?`,
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => {
+            handleDeleteItem(item);
+          }
+        }
+      ]
+    );
   }
 
   useEffect(() => {
@@ -346,6 +387,15 @@ export function InventoryScreen() {
                       ? formatDateTime(item.expiresAt)
                       : "No expiration date"}
                   </Text>
+                </View>
+                <View style={styles.cardActionRow}>
+                  {deletingItemId === item.id ? (
+                    <Text style={styles.deleteLoadingText}>Deleting item...</Text>
+                  ) : (
+                    <Pressable onPress={() => confirmDeleteItem(item)} style={styles.deleteButton}>
+                      <Text style={styles.deleteButtonText}>Delete</Text>
+                    </Pressable>
+                  )}
                 </View>
               </View>
             </View>
@@ -640,5 +690,27 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 13,
     lineHeight: 19
+  },
+  cardActionRow: {
+    paddingTop: 6,
+    alignItems: "flex-end"
+  },
+  deleteButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    backgroundColor: "#fff5f5",
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  deleteButtonText: {
+    color: colors.tomato,
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  deleteLoadingText: {
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "700"
   }
 });

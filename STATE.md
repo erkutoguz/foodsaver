@@ -816,6 +816,8 @@ What changed:
 - Simplified the mobile recipe screen by removing the provider badge and removing all `Back to prompt` actions.
 - Replaced the static Home screen with a dashboard backed by pantry summary, expiring items, and cooking history with pull-to-refresh and partial-failure loading.
 - Replaced the pantry expiration text input with a native date-time picker and now submit/display expiration values with time included.
+- Added mobile pantry item deletion with native confirmation, per-item loading, and local state removal only after backend success.
+- Updated the Home dashboard to refresh on tab focus so pantry changes made in the Pantry tab appear after returning to Home.
 
 Files changed:
 
@@ -863,6 +865,9 @@ Commands run:
 - multiple `sed -n` reads across `mobile/src/screens`, `mobile/src/services`, and `mobile/src/components`
 - `cd mobile && npm install @react-native-community/datetimepicker`
 - `cd mobile && npm ls @react-native-community/datetimepicker`
+- multiple `sed -n` reads across `mobile/src/screens/InventoryScreen.js`, `mobile/src/services/inventory-service.js`, and `mobile/src/lib/api-client.js`
+- `rg -n "deleteInventoryItem|DELETE /api/inventory|deleteRequest" api mobile -S`
+- multiple `sed -n` reads across `mobile/src/screens/HomeScreen.js`, `mobile/src/navigation/AppNavigator.js`, and `mobile/package.json`
 
 Test results:
 
@@ -888,6 +893,9 @@ Test results:
 - Native date-time picker dependency was installed successfully:
   - `@react-native-community/datetimepicker@9.1.0`
 - Pantry expiration date-time changes were not covered by automated tests because the mobile app still has no frontend test setup in the repo.
+- Pantry item delete changes were not covered by automated tests because the mobile app still has no frontend test setup in the repo.
+- Pantry item delete behavior was verified only by code inspection in this task; device/emulator manual verification is still pending.
+- Home dashboard focus-refresh change was not covered by automated tests because the mobile app still has no frontend test setup in the repo.
 
 Remaining issues:
 
@@ -900,6 +908,8 @@ Remaining issues:
 - Mobile recipe polling does not resume across screen exits or app restarts.
 - Mobile still has no frontend automated test/lint/format pipeline.
 - The new pantry date-time picker flow still needs manual device/emulator verification on Android and iOS.
+- The new pantry delete flow still needs manual device/emulator verification, especially confirmation alert behavior and per-item loading feedback.
+- The Home dashboard refresh-on-focus behavior still needs manual device/emulator verification after pantry create/delete actions.
 
 Next recommended task:
 
@@ -908,5 +918,7 @@ Next recommended task:
    - point `MONGODB_URI` to a reachable local MongoDB or working Atlas URI
  - After MongoDB is reachable, manually validate the new mobile `Recipes` tab end-to-end with `AI_PROVIDER=ollama`.
  - Then wire the next highest-value mobile feature:
+   - manually validate Home refresh after pantry create/delete on device/emulator
+   - manually validate pantry delete flow on device/emulator
    - recipe cook action
    - favorites/history views
