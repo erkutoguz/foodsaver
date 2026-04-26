@@ -16,3 +16,19 @@ export function createInventoryRequest(token, payload) {
     }
   });
 }
+
+export function getInventorySummaryRequest(token, days = 7) {
+  return getRequest(`${API_PATHS.inventory.summary}?days=${days}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function getExpiringInventoryRequest(token, days = 7) {
+  return getRequest(`${API_PATHS.inventory.expiring}?days=${days}`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}

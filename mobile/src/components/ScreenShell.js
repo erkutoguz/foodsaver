@@ -2,7 +2,14 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors } from "../theme/colors";
 
-export function ScreenShell({ eyebrow, title, description, children, scrollable = false }) {
+export function ScreenShell({
+  eyebrow,
+  title,
+  description,
+  children,
+  scrollable = false,
+  refreshControl
+}) {
   const body = (
     <View style={[styles.container, scrollable ? styles.containerScrollable : styles.containerFill]}>
       <View style={styles.hero}>
@@ -21,6 +28,7 @@ export function ScreenShell({ eyebrow, title, description, children, scrollable 
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          refreshControl={refreshControl}
         >
           {body}
         </ScrollView>

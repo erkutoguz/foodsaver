@@ -158,7 +158,7 @@ Screens currently present:
   - real login/register form
   - calls backend auth endpoints through Zustand actions
 - [mobile/src/screens/HomeScreen.js](/home/erkut/bitirme/mobile/src/screens/HomeScreen.js)
-  - mostly static summary placeholders
+  - now a data-driven dashboard using pantry summary, expiring items, and cooking history
 - [mobile/src/screens/InventoryScreen.js](/home/erkut/bitirme/mobile/src/screens/InventoryScreen.js)
   - real inventory fetch and create flow
   - displays expiry status from backend response
@@ -194,6 +194,8 @@ API client usage:
   - [mobile/src/services/auth-service.js](/home/erkut/bitirme/mobile/src/services/auth-service.js)
 - Inventory service wired:
   - [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
+- History service wired:
+  - [mobile/src/services/history-service.js](/home/erkut/bitirme/mobile/src/services/history-service.js)
 - Recipe service wired:
   - [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
 - API paths for recipes, favorites, history, and image recognition exist in config:
@@ -672,7 +674,7 @@ Root combined startup check:
 ## 13. Current Implementation Status
 | Area | Status | Notes |
 |---|---|---|
-| Mobile frontend | partial | Auth, pantry, and recipe generation flows are real; home is still mostly static and profile is still lightweight. |
+| Mobile frontend | partial | Auth, pantry, recipe generation, and dashboard home are real; profile is still lightweight. |
 | Express backend | implemented | Core API is present in `api/src/app.js` and routed modules. |
 | MongoDB models | implemented | Users, inventory, recipe jobs, recipes, favorites, and history models exist. |
 | Authentication | implemented | JWT auth with register/login/me and persisted mobile session. |
@@ -688,9 +690,8 @@ Root combined startup check:
 
 ## 14. Problems, Risks, and Technical Debt
 - Hardcoded LAN API fallback in [mobile/src/config/env.js](/home/erkut/bitirme/mobile/src/config/env.js) and [mobile/.env.example](/home/erkut/bitirme/mobile/.env.example) makes local setup environment-specific.
-- Mobile home dashboard is static copy, not data-driven from `/api/inventory/summary`, `/api/history`, or recipe endpoints. [mobile/src/screens/HomeScreen.js](/home/erkut/bitirme/mobile/src/screens/HomeScreen.js)
 - Mobile profile screen references favorites/history/settings conceptually, but no such data is loaded. [mobile/src/screens/ProfileScreen.js](/home/erkut/bitirme/mobile/src/screens/ProfileScreen.js)
-- Mobile inventory service only supports list/create, while backend also supports summary, expiring, update, and delete. [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
+- Mobile inventory service now supports list/create/summary/expiring, but update and delete are still not wired on mobile. [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
 - Mobile recipe polling is screen-local only; if the user leaves the screen or the app is restarted, in-flight recipe jobs are not resumed by the client. [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
 - Recipe jobs run through in-process `setTimeout`, so queued work can be lost on server restart and does not scale to multiple instances. [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js)
 - Image recognition is not real image analysis. It matches keywords from text input and returns canned detections. [api/src/adapters/mock-image-recognition.provider.js](/home/erkut/bitirme/api/src/adapters/mock-image-recognition.provider.js)
@@ -812,6 +813,7 @@ What changed:
 - Added the first real mobile recipe generation UI flow with async job polling and recipe detail rendering.
 - Tightened the Ollama prompt so user prompts may be any language while generated recipe content is instructed to stay in English.
 - Simplified the mobile recipe screen by removing the provider badge and removing all `Back to prompt` actions.
+- Replaced the static Home screen with a dashboard backed by pantry summary, expiring items, and cooking history with pull-to-refresh and partial-failure loading.
 
 Files changed:
 
@@ -827,6 +829,10 @@ Files changed:
 - [api/src/adapters/gemini-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/gemini-recipe.provider.js)
 - [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
 - [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
+- [mobile/src/components/ScreenShell.js](/home/erkut/bitirme/mobile/src/components/ScreenShell.js)
+- [mobile/src/services/history-service.js](/home/erkut/bitirme/mobile/src/services/history-service.js)
+- [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
+- [mobile/src/screens/HomeScreen.js](/home/erkut/bitirme/mobile/src/screens/HomeScreen.js)
 - [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
 - [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
 
@@ -849,6 +855,7 @@ Commands run:
 - `cd mobile && npm run web`
 - `cd mobile && npx expo export --platform web`
 - `cd api && npx vitest run tests/ollama-recipe-provider.test.js`
+- multiple `sed -n` reads across `mobile/src/screens`, `mobile/src/services`, and `mobile/src/components`
 
 Test results:
 
@@ -870,6 +877,7 @@ Test results:
   - one failed on extensionless React Native module resolution
   - one failed on JSX parsing in plain Node without Expo/Babel transforms
 - Targeted Ollama adapter tests passed after the English-output prompt update: `16/16`.
+- Home dashboard changes were not covered by automated tests because the mobile app still has no frontend test setup in the repo.
 
 Remaining issues:
 
