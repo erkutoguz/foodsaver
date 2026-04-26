@@ -1,5 +1,6 @@
+import { useFocusEffect } from "@react-navigation/native";
 import { ActivityIndicator, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { InfoCard } from "../components/InfoCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenShell } from "../components/ScreenShell";
@@ -79,9 +80,11 @@ export function HomeScreen({ navigation }) {
     setIsRefreshing(false);
   }
 
-  useEffect(() => {
-    loadDashboard();
-  }, [token]);
+  useFocusEffect(
+    useCallback(() => {
+      loadDashboard();
+    }, [token])
+  );
 
   const heroTitle = firstName ? `Welcome back, ${firstName}` : "Welcome back";
 
