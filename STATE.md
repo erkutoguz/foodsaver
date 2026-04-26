@@ -162,6 +162,7 @@ Screens currently present:
 - [mobile/src/screens/InventoryScreen.js](/home/erkut/bitirme/mobile/src/screens/InventoryScreen.js)
   - real inventory fetch and create flow
   - displays expiry status from backend response
+  - uses a native date-time picker for expiration input instead of free-text entry
 - [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
   - real prompt-to-result recipe generation flow
   - creates async recipe jobs, polls job status, and renders recipe details
@@ -814,6 +815,7 @@ What changed:
 - Tightened the Ollama prompt so user prompts may be any language while generated recipe content is instructed to stay in English.
 - Simplified the mobile recipe screen by removing the provider badge and removing all `Back to prompt` actions.
 - Replaced the static Home screen with a dashboard backed by pantry summary, expiring items, and cooking history with pull-to-refresh and partial-failure loading.
+- Replaced the pantry expiration text input with a native date-time picker and now submit/display expiration values with time included.
 
 Files changed:
 
@@ -830,8 +832,11 @@ Files changed:
 - [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
 - [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
 - [mobile/src/components/ScreenShell.js](/home/erkut/bitirme/mobile/src/components/ScreenShell.js)
+- [mobile/package.json](/home/erkut/bitirme/mobile/package.json)
+- [mobile/package-lock.json](/home/erkut/bitirme/mobile/package-lock.json)
 - [mobile/src/services/history-service.js](/home/erkut/bitirme/mobile/src/services/history-service.js)
 - [mobile/src/services/inventory-service.js](/home/erkut/bitirme/mobile/src/services/inventory-service.js)
+- [mobile/src/screens/InventoryScreen.js](/home/erkut/bitirme/mobile/src/screens/InventoryScreen.js)
 - [mobile/src/screens/HomeScreen.js](/home/erkut/bitirme/mobile/src/screens/HomeScreen.js)
 - [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
 - [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
@@ -856,6 +861,8 @@ Commands run:
 - `cd mobile && npx expo export --platform web`
 - `cd api && npx vitest run tests/ollama-recipe-provider.test.js`
 - multiple `sed -n` reads across `mobile/src/screens`, `mobile/src/services`, and `mobile/src/components`
+- `cd mobile && npm install @react-native-community/datetimepicker`
+- `cd mobile && npm ls @react-native-community/datetimepicker`
 
 Test results:
 
@@ -878,6 +885,9 @@ Test results:
   - one failed on JSX parsing in plain Node without Expo/Babel transforms
 - Targeted Ollama adapter tests passed after the English-output prompt update: `16/16`.
 - Home dashboard changes were not covered by automated tests because the mobile app still has no frontend test setup in the repo.
+- Native date-time picker dependency was installed successfully:
+  - `@react-native-community/datetimepicker@9.1.0`
+- Pantry expiration date-time changes were not covered by automated tests because the mobile app still has no frontend test setup in the repo.
 
 Remaining issues:
 
@@ -889,6 +899,7 @@ Remaining issues:
 - Manual Ollama recipe generation still depends on a running local Ollama service and a pulled local model referenced by `OLLAMA_MODEL`.
 - Mobile recipe polling does not resume across screen exits or app restarts.
 - Mobile still has no frontend automated test/lint/format pipeline.
+- The new pantry date-time picker flow still needs manual device/emulator verification on Android and iOS.
 
 Next recommended task:
 

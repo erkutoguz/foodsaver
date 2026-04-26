@@ -1,4 +1,5 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import { FormField } from "../components/FormField";
 import { InfoCard } from "../components/InfoCard";
@@ -20,7 +21,9 @@ export function InventoryScreen() {
   const [quantity, setQuantity] = useState("");
   const [unit, setUnit] = useState("piece");
   const [category, setCategory] = useState("");
-  const [expiresAt, setExpiresAt] = useState("");
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,7 +50,6 @@ export function InventoryScreen() {
   async function handleCreateItem() {
     const trimmedName = name.trim();
     const trimmedCategory = category.trim();
-    const trimmedExpiresAt = expiresAt.trim();
     const parsedQuantity = Number(quantity);
 
     if (!trimmedName) {
@@ -60,8 +62,8 @@ export function InventoryScreen() {
       return;
     }
 
-    if (trimmedExpiresAt && Number.isNaN(new Date(trimmedExpiresAt).getTime())) {
-      setFormError("Expiration date should look like 2026-04-20.");
+    if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+      setFormError("Please choose a valid expiration date and time.");
       return;
     }
 
@@ -79,14 +81,16 @@ export function InventoryScreen() {
         quantity: parsedQuantity,
         unit,
         category: trimmedCategory || undefined,
-        expiresAt: trimmedExpiresAt || undefined
+        expiresAt: expiresAt ? expiresAt.toISOString() : undefined
       });
 
       setName("");
       setQuantity("");
       setUnit("piece");
       setCategory("");
-      setExpiresAt("");
+      setExpiresAt(null);
+      setShowDatePicker(false);
+      setShowTimePicker(false);
       await loadInventory();
     } catch (error) {
       setFormError(error.message || "Could not add the item.");
@@ -98,6 +102,60 @@ export function InventoryScreen() {
   useEffect(() => {
     loadInventory();
   }, [token]);
+
+  function openExpirationPicker() {
+    if (Platform.OS === "ios") {
+      setShowDatePicker(true);
+      setShowTimePicker(true);
+      return;
+    }
+
+    setShowDatePicker(true);
+  }
+
+  function handleDateChange(event, selectedDate) {
+    if (event.type === "dismissed") {
+      setShowDatePicker(false);
+      return;
+    }
+
+    const baseDate = expiresAt || getDefaultDateTime();
+    const nextDate = selectedDate || baseDate;
+    const mergedDate = new Date(nextDate);
+    mergedDate.setHours(baseDate.getHours(), baseDate.getMinutes(), 0, 0);
+    setExpiresAt(mergedDate);
+    setFormError("");
+
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+      setShowTimePicker(true);
+    }
+  }
+
+  function handleTimeChange(event, selectedTime) {
+    if (event.type === "dismissed") {
+      setShowTimePicker(false);
+      return;
+    }
+
+    const baseDate = expiresAt || getDefaultDateTime();
+    const nextTime = selectedTime || baseDate;
+    const mergedDate = new Date(baseDate);
+    mergedDate.setHours(nextTime.getHours(), nextTime.getMinutes(), 0, 0);
+    setExpiresAt(mergedDate);
+    setFormError("");
+
+    if (Platform.OS === "android") {
+      setShowTimePicker(false);
+    }
+  }
+
+  function clearExpiration() {
+    setExpiresAt(null);
+    setShowDatePicker(false);
+    setShowTimePicker(false);
+    setFormError("");
+  }
 
   return (
     <ScreenShell
@@ -164,15 +222,48 @@ export function InventoryScreen() {
             returnKeyType="next"
           />
 
-          <FormField
-            label="Expiration date"
-            value={expiresAt}
-            onChangeText={setExpiresAt}
-            placeholder="2026-04-20"
-            autoCapitalize="none"
-            returnKeyType="done"
-            onSubmitEditing={handleCreateItem}
-          />
+          <View style={styles.formCol}>
+            <Text style={styles.fieldLabel}>Expiration date & time</Text>
+
+            <View style={styles.expirationRow}>
+              <Pressable
+                onPress={openExpirationPicker}
+                style={({ pressed }) => [
+                  styles.expirationField,
+                  pressed && styles.expirationFieldPressed
+                ]}
+              >
+                <Text style={[styles.expirationText, !expiresAt && styles.expirationPlaceholder]}>
+                  {expiresAt ? formatDateTime(expiresAt) : "Select date & time"}
+                </Text>
+              </Pressable>
+
+              {expiresAt ? (
+                <Pressable onPress={clearExpiration} style={styles.clearButton}>
+                  <Text style={styles.clearButtonText}>Clear</Text>
+                </Pressable>
+              ) : null}
+            </View>
+
+            {showDatePicker ? (
+              <DateTimePicker
+                value={expiresAt || getDefaultDateTime()}
+                mode="date"
+                display="default"
+                onChange={handleDateChange}
+              />
+            ) : null}
+
+            {showTimePicker ? (
+              <DateTimePicker
+                value={expiresAt || getDefaultDateTime()}
+                mode="time"
+                display="default"
+                is24Hour
+                onChange={handleTimeChange}
+              />
+            ) : null}
+          </View>
         </View>
 
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
@@ -252,7 +343,7 @@ export function InventoryScreen() {
                   <Text style={styles.detailLabel}>Expiration</Text>
                   <Text style={styles.bottomText}>
                     {item.expiresAt
-                      ? formatDate(item.expiresAt)
+                      ? formatDateTime(item.expiresAt)
                       : "No expiration date"}
                   </Text>
                 </View>
@@ -289,12 +380,20 @@ function getStatusStyle(status) {
   return styles.statusSafe;
 }
 
-function formatDate(value) {
-  return new Date(value).toLocaleDateString("en-GB", {
+function formatDateTime(value) {
+  return new Date(value).toLocaleString("en-GB", {
     day: "2-digit",
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
   });
+}
+
+function getDefaultDateTime() {
+  const nextHour = new Date();
+  nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+  return nextHour;
 }
 
 const styles = StyleSheet.create({
@@ -310,6 +409,46 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: colors.ink,
     fontSize: 14,
+    fontWeight: "700"
+  },
+  expirationRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10
+  },
+  expirationField: {
+    flex: 1,
+    minHeight: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "#f9fafb",
+    paddingHorizontal: 14,
+    justifyContent: "center"
+  },
+  expirationFieldPressed: {
+    opacity: 0.9
+  },
+  expirationText: {
+    color: colors.ink,
+    fontSize: 15
+  },
+  expirationPlaceholder: {
+    color: "#94a3b8"
+  },
+  clearButton: {
+    minHeight: 42,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    borderWidth: 1,
+    borderColor: colors.line
+  },
+  clearButtonText: {
+    color: colors.ink,
+    fontSize: 13,
     fontWeight: "700"
   },
   unitRow: {
