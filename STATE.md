@@ -1359,3 +1359,57 @@ Next recommended task:
 - Manually verify Pantry edit flow on device: tap Edit, modify fields, save, cancel, error case
 - Manually verify History screen on device
 - Manually verify Cook recipe + History tab end-to-end flow
+
+---
+
+## Session Change Log — History screen full recipe details
+
+What changed:
+
+- Updated [api/src/repositories/history.repository.js](api/src/repositories/history.repository.js): added `.populate("recipeId", "ingredients steps estimatedTimeMinutes calories missingIngredients")` to `findHistoryByUserId` so recipe detail fields are joined when listing history.
+- Updated [api/src/services/history.service.js](api/src/services/history.service.js): `toHistoryResponse` now detects whether `recipeId` is populated (has `_id`) and adds `ingredients`, `steps`, `estimatedTimeMinutes`, `calories`, `missingIngredients` to the response. Unpopulated entries (from `cookRecipe` call path) safely fall back to empty arrays / null. Existing fields unchanged — change is additive only.
+- Updated [api/tests/backend.test.js](api/tests/backend.test.js): added 6 assertions to "lists recipe history for the authenticated user" test verifying that `ingredients`, `steps`, `estimatedTimeMinutes`, `calories`, and `missingIngredients` are present and correctly typed.
+- Updated [mobile/src/screens/HistoryScreen.js](mobile/src/screens/HistoryScreen.js): rewrote `HistoryRecipeCard` expand section to render full recipe content: Ingredients, Steps (numbered), Missing ingredients (if any), Consumed from pantry (if any). Added meta pills (time + calories) in collapsed view. Added `metaRow`, `metaPill`, `metaPillText`, `stepRow`, `stepIndex`, `stepText` styles.
+
+Files changed:
+
+- [api/src/repositories/history.repository.js](api/src/repositories/history.repository.js)
+- [api/src/services/history.service.js](api/src/services/history.service.js)
+- [api/tests/backend.test.js](api/tests/backend.test.js)
+- [mobile/src/screens/HistoryScreen.js](mobile/src/screens/HistoryScreen.js)
+
+Commands run:
+
+- `cd api && npx vitest run tests/backend.test.js`
+- `npx vitest run` (full suite)
+
+Test results:
+
+- `backend.test.js`: 43/43 passed (unchanged count — new assertions added to existing test)
+- Full suite: 156/156 passed across 4 test files — no regressions
+
+Manual QA scenarios (to verify on device):
+
+- History tab opens and fetches GET /api/history ← pending device verification
+- Each history card shows title, cooked date, prompt ← pending
+- Meta pills show estimated time and calories ← pending
+- Tapping "Read more" expands card ← pending
+- Expanded card shows Ingredients list ← pending
+- Expanded card shows numbered Steps ← pending
+- Missing ingredients section shown only when non-empty ← pending
+- "Consumed from pantry" section shows what was deducted ← pending
+- "Show less" collapses card ← pending
+- Pull-to-refresh reloads history ← pending
+- Error state and retry still work ← pending
+- Empty state still works ← pending
+- cookRecipe endpoint still returns 200 (unpopulated path unaffected) ← covered by backend test
+
+Remaining issues:
+
+- If a Recipe document is deleted after cooking, history entry still shows title/prompt/consumedIngredients but `ingredients`, `steps`, etc. will be empty arrays (graceful degradation)
+- All mobile behaviors pending device/emulator verification
+
+Next recommended task:
+
+- Manually verify full History flow on device: cook a recipe, open History, expand card, verify all sections
+- Manually verify Pantry edit flow on device

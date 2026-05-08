@@ -33,18 +33,75 @@ function HistoryRecipeCard({ entry }) {
         </Text>
       ) : null}
 
+      {entry.estimatedTimeMinutes != null || entry.calories != null ? (
+        <View style={styles.metaRow}>
+          {entry.estimatedTimeMinutes != null ? (
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>{entry.estimatedTimeMinutes} min</Text>
+            </View>
+          ) : null}
+          {entry.calories != null ? (
+            <View style={styles.metaPill}>
+              <Text style={styles.metaPillText}>{entry.calories} cal</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       {expanded ? (
         <>
           <View style={styles.divider} />
 
-          <Text style={styles.sectionLabel}>Ingredients used</Text>
-          <View style={styles.listSection}>
-            {entry.consumedIngredients.map((ing, i) => (
-              <Text key={i} style={styles.listText}>
-                {ing.quantity} {ing.unit} {ing.name}
-              </Text>
-            ))}
-          </View>
+          {entry.ingredients?.length ? (
+            <>
+              <Text style={styles.sectionLabel}>Ingredients</Text>
+              <View style={styles.listSection}>
+                {entry.ingredients.map((ing, i) => (
+                  <Text key={i} style={styles.listText}>
+                    {ing.quantity} {ing.unit} {ing.name}
+                  </Text>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {entry.steps?.length ? (
+            <>
+              <Text style={styles.sectionLabel}>Steps</Text>
+              <View style={styles.listSection}>
+                {entry.steps.map((step, i) => (
+                  <View key={i} style={styles.stepRow}>
+                    <Text style={styles.stepIndex}>{i + 1}.</Text>
+                    <Text style={styles.stepText}>{step}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {entry.missingIngredients?.length ? (
+            <>
+              <Text style={styles.sectionLabel}>Missing ingredients</Text>
+              <View style={styles.listSection}>
+                {entry.missingIngredients.map((item, i) => (
+                  <Text key={i} style={styles.listText}>{item}</Text>
+                ))}
+              </View>
+            </>
+          ) : null}
+
+          {entry.consumedIngredients?.length ? (
+            <>
+              <Text style={styles.sectionLabel}>Consumed from pantry</Text>
+              <View style={styles.listSection}>
+                {entry.consumedIngredients.map((ing, i) => (
+                  <Text key={i} style={styles.listText}>
+                    {ing.quantity} {ing.unit} {ing.name}
+                  </Text>
+                ))}
+              </View>
+            </>
+          ) : null}
 
           <View style={styles.divider} />
         </>
@@ -193,6 +250,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19
   },
+  metaRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8
+  },
+  metaPill: {
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.paper,
+    borderWidth: 1,
+    borderColor: colors.line
+  },
+  metaPillText: {
+    color: colors.ink,
+    fontSize: 12,
+    fontWeight: "700"
+  },
   divider: {
     height: 1,
     backgroundColor: colors.line
@@ -206,6 +281,23 @@ const styles = StyleSheet.create({
     gap: 8
   },
   listText: {
+    color: colors.ink,
+    fontSize: 14,
+    lineHeight: 21
+  },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8
+  },
+  stepIndex: {
+    color: colors.brand,
+    fontSize: 14,
+    fontWeight: "800",
+    width: 20
+  },
+  stepText: {
+    flex: 1,
     color: colors.ink,
     fontSize: 14,
     lineHeight: 21

@@ -12,15 +12,21 @@ function normalizeName(value) {
 }
 
 function toHistoryResponse(entry) {
+  const recipe = entry.recipeId?._id ? entry.recipeId : null;
   return {
     id: entry._id.toString(),
-    recipeId: entry.recipeId.toString(),
+    recipeId: recipe ? recipe._id.toString() : entry.recipeId.toString(),
     title: entry.title,
     prompt: entry.prompt,
     consumedIngredients: entry.consumedIngredients,
     cookedAt: entry.cookedAt,
     createdAt: entry.createdAt,
-    updatedAt: entry.updatedAt
+    updatedAt: entry.updatedAt,
+    ingredients: recipe?.ingredients ?? [],
+    steps: recipe?.steps ?? [],
+    estimatedTimeMinutes: recipe?.estimatedTimeMinutes ?? null,
+    calories: recipe?.calories ?? null,
+    missingIngredients: recipe?.missingIngredients ?? []
   };
 }
 

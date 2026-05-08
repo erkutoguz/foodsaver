@@ -861,6 +861,12 @@ describe("backend", () => {
     expect(response.body.history).toHaveLength(1);
     expect(response.body.history[0].recipeId).toBe(firstRecipe.recipeId);
     expect(response.body.history[0].title).toContain("Mock");
+    expect(response.body.history[0].ingredients).toBeInstanceOf(Array);
+    expect(response.body.history[0].steps).toBeInstanceOf(Array);
+    expect(response.body.history[0].steps.length).toBeGreaterThan(0);
+    expect(typeof response.body.history[0].estimatedTimeMinutes).toBe("number");
+    expect(typeof response.body.history[0].calories).toBe("number");
+    expect(response.body.history[0].missingIngredients).toBeInstanceOf(Array);
   });
 
   it("rejects cooking when inventory is not sufficient anymore", async () => {

@@ -5,7 +5,7 @@ export function createRecipeHistoryRecord(payload) {
 }
 
 export function findHistoryByUserId(userId) {
-  return RecipeHistory.find({ userId }).sort({
-    cookedAt: -1
-  });
+  return RecipeHistory.find({ userId })
+    .populate("recipeId", "ingredients steps estimatedTimeMinutes calories missingIngredients")
+    .sort({ cookedAt: -1 });
 }
