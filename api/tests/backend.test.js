@@ -927,6 +927,42 @@ describe("backend", () => {
     expect(recipeResponse.body.recipe.missingIngredients).toEqual([]);
   });
 
+  it("backend overwrites provider calories with backend-computed value", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "calories-override@example.com"
+    });
+
+    // Empty pantry → mock provider returns its default 2-ingredient recipe
+    // (pasta 200g + olive oil 1 piece) with calories: 180 + 2*120 = 420.
+    // Backend computes from static table: pasta 200g = 262, olive oil 1 piece = 0 → 262.
+    const createJobResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({ prompt: "simple pasta" });
+
+    expect(createJobResponse.status).toBe(202);
+
+    const jobResponse = await waitForRecipeJobCompletion(session.authHeader, createJobResponse.body.jobId);
+
+    expect(jobResponse.body.status).toBe("completed");
+
+    const recipeResponse = await request(app)
+      .get(`/api/recipes/${jobResponse.body.recipeId}`)
+      .set("Authorization", session.authHeader);
+
+    expect(recipeResponse.status).toBe(200);
+
+    const { recipe } = recipeResponse.body;
+
+    // calories must be a finite non-negative integer
+    expect(Number.isInteger(recipe.calories)).toBe(true);
+    expect(recipe.calories).toBeGreaterThanOrEqual(0);
+
+    // must differ from the mock provider formula (180 + n*120)
+    const mockProviderCalories = 180 + recipe.ingredients.length * 120;
+    expect(recipe.calories).not.toBe(mockProviderCalories);
+  });
+
   it("missingIngredients lists pantry-absent recipe ingredients", async () => {
     const session = await registerAndGetAuthHeader({
       email: "missing-absent@example.com"

@@ -125,10 +125,10 @@ export async function processRecipeJob(jobId) {
     const calories = computeEstimatedCalories(generatedRecipe.ingredients);
 
     const recipe = await createRecipeRecord({
+      ...generatedRecipe,
       userId: queuedJob.userId,
       jobId: queuedJob._id,
       prompt: queuedJob.prompt,
-      ...generatedRecipe,
       missingIngredients,
       calories
     });

@@ -1070,3 +1070,94 @@ Next recommended task:
 - Manually validate heart button on recipe result screen.
 - Validate dynamic `expo-constants` host resolution works on a physical device (confirm no "Request timed out" after IP change).
 - Wire the cook-recipe action into the mobile UI.
+
+---
+
+## Session Change Log — backend-computed calorie estimation
+
+What changed:
+
+- Added [api/src/lib/recipe-calories.js](/home/erkut/bitirme/api/src/lib/recipe-calories.js):
+  - `computeEstimatedCalories(recipeIngredients)` — pure, deterministic, no DB/env access
+  - static `KCAL_PER_100G` map (18 entries): chicken, chicken breast, beef, ground beef, egg, potato, tomato, onion, garlic, bread, breadcrumbs, rice, pasta, cheese, milk, yogurt, olive oil, oil, butter
+  - `ML_ALLOWED` set for liquid-like ingredients (milk, yogurt, oil, olive oil) where ml is treated as gram-equivalent
+  - `KCAL_PER_PIECE` map (6 entries): egg, potato, tomato, onion, garlic, bread
+  - unit branches: `gram` → kcal/100g formula; `ml` → same formula if in ML_ALLOWED, else skip; `piece` → per-piece lookup, else skip; unknown unit → skip
+  - name normalization reuses same lowercase/trim/collapse/punctuation logic as missing-ingredients.js
+  - malformed input (non-array, null entries, invalid quantity, empty/missing unit) → skip silently, never crash
+  - result is `Math.round(total)` — always an integer, returns 0 for fully unknown inputs
+- Updated [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js):
+  - imports `computeEstimatedCalories`
+  - after provider generation, computes `calories = computeEstimatedCalories(generatedRecipe.ingredients)`
+  - spreads alongside backend-computed `missingIngredients`; provider `calories` is overwritten before persistence
+  - `generatedRecipe` is not mutated
+
+Files changed:
+
+- [api/src/lib/recipe-calories.js](/home/erkut/bitirme/api/src/lib/recipe-calories.js) ← new
+- [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js)
+- [api/tests/recipe-calories.test.js](/home/erkut/bitirme/api/tests/recipe-calories.test.js) ← new
+
+Commands run:
+
+- `cd api && npx vitest run tests/recipe-calories.test.js`
+- `cd api && npx vitest run`
+
+Test results:
+
+- `recipe-calories.test.js`: 35/35 passed
+- `missing-ingredients.test.js`: 62/62 passed
+- `ollama-recipe-provider.test.js`: 16/16 passed
+- `backend.test.js`: 42/42 passed
+- Full suite: 155/155 passed across 4 test files
+
+Remaining limitations:
+
+- Static calorie table covers only 18 named ingredients; any ingredient not in the table is silently skipped
+- No macros (protein, carbs, fat)
+- No external nutrition database
+- No serving-size normalization (e.g. 1 cup ≠ 240ml — cup is an unknown unit and is skipped)
+- ml is only accepted for a fixed allow-list of liquid-like ingredients; all other ml-unit ingredients are skipped
+- No cross-unit conversion
+- Calorie estimate may undercount when many ingredients are unknown
+
+Next recommended task:
+
+- Manually validate favorites screen on device/emulator: save, list, expand, remove.
+- Manually validate heart button on recipe result screen.
+- Wire the cook-recipe action into the mobile UI.
+
+---
+
+## Session Change Log — spread order hardening + calories integration test
+
+What changed:
+
+- Fixed spread order in [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js): `...generatedRecipe` is now spread first, then all backend-owned fields (`userId`, `jobId`, `prompt`, `missingIngredients`, `calories`) come after, so provider output can never accidentally overwrite them.
+- Added one integration test to [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js): "backend overwrites provider calories with backend-computed value" — asserts persisted `calories` is a finite non-negative integer and differs from the mock provider's formula (`180 + n*120`).
+
+Files changed:
+
+- [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js)
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+
+Commands run:
+
+- `cd api && npx vitest run tests/recipe-calories.test.js tests/missing-ingredients.test.js tests/backend.test.js`
+
+Test results:
+
+- `recipe-calories.test.js`: 35/35 passed
+- `missing-ingredients.test.js`: 62/62 passed
+- `backend.test.js`: 43/43 passed (was 42, +1 new calories overwrite test)
+- Total across 3 files: 140/140 passed
+
+Remaining issues:
+
+- Static calorie table still covers only 18 named ingredients; unrecognized ingredients are skipped silently
+- No macros (protein / carbs / fat)
+- No external nutrition database
+- No serving-size or cross-unit conversion
+- ml only accepted for a fixed allow-list of liquid-like ingredients
+- Mobile device/emulator verification for favorites, heart button, and dynamic host resolution still pending
+- Cook-recipe action not yet wired in mobile UI
