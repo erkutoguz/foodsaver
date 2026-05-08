@@ -1006,3 +1006,67 @@ Next recommended task:
 - Manually validate heart button on recipe result screen.
 - Validate dynamic `expo-constants` host resolution works on a physical device (confirm no "Request timed out" after IP change).
 - Consider wiring the cook-recipe action into the mobile UI.
+
+---
+
+## Session Change Log — quantity-aware missing ingredient detection
+
+What changed:
+
+- Rewrote [api/src/lib/missing-ingredients.js](/home/erkut/bitirme/api/src/lib/missing-ingredients.js) with quantity-aware logic:
+  - added `normalizeUnit(unit)` helper
+  - added `isValidNumber(value)` helper (finite number ≥ 0)
+  - renamed `isSatisfied` → `isNameSatisfied` (presence-only, used as fallback)
+  - added `findMatchingPantryItems(normalizedRecipeName, pantryItems)` — satisfier-map-aware pantry lookup
+  - added `isQuantitySatisfied(normalizedRecipeName, recipeQty, normalizedRecipeUnit, pantryItems)` — sums matching pantry quantities for the same unit; items with different units are silently ignored
+  - inventory loop now builds both `pantryNormalizedSet` (for presence checks) and `pantryItems` (for quantity checks; only items with valid qty+unit)
+  - three-branch ingredient logic: both `quantity` and `unit` absent → presence-only fallback; both present and valid → quantity-aware; otherwise (one missing, or value invalid) → treat as missing
+  - preserves backward compatibility: all 34 pre-existing tests pass unchanged because they use ingredients with no `quantity`/`unit` fields at all
+- Extended [api/tests/missing-ingredients.test.js](/home/erkut/bitirme/api/tests/missing-ingredients.test.js) with ~28 new quantity-aware tests covering:
+  - same-unit sufficient / insufficient (piece, gram, ml)
+  - exact quantity match
+  - unit mismatch (ml vs gram, piece vs gram) → missing
+  - multiple pantry items summed; incompatible unit ignored
+  - satisfier map with quantity (enough, insufficient, zero pantry, unit mismatch)
+  - invalid recipe quantity (string, NaN, negative) → missing
+  - invalid recipe unit (empty string) → missing
+  - qty present / unit null and unit present / qty null → missing
+  - invalid pantry quantity → item excluded from pantryItems list
+  - zero pantry quantity does not satisfy nonzero recipe
+  - zero recipe quantity always satisfied
+  - case/whitespace normalization with qty/unit
+  - unit normalization (uppercase pantry vs lowercase recipe)
+  - mixed presence-only + quantity-aware in same call
+
+Files changed:
+
+- [api/src/lib/missing-ingredients.js](/home/erkut/bitirme/api/src/lib/missing-ingredients.js)
+- [api/tests/missing-ingredients.test.js](/home/erkut/bitirme/api/tests/missing-ingredients.test.js)
+
+Commands run:
+
+- `cd api && npx vitest run`
+
+Test results:
+
+- `missing-ingredients.test.js`: 62/62 passed (was 34, now includes 28 new quantity-aware tests)
+- `ollama-recipe-provider.test.js`: 16/16 passed
+- `backend.test.js`: 42/42 passed
+- Full suite: 120/120 passed across 3 test files
+
+Remaining issues:
+
+- Satisfier map is narrow and curated; semantic/fuzzy ingredient matching is not implemented.
+- No cross-unit conversion (e.g. 1000ml ≠ 1L); same-unit comparison only.
+- Mobile recipe polling does not resume across screen exits or app restarts.
+- Mobile still has no frontend automated test/lint/format pipeline.
+- AI image recognition is mock-only.
+- Notification flow is missing.
+- Manual device/emulator verification for new mobile screens (Favorites, recipe heart button, env.js dynamic URL) is still pending.
+
+Next recommended task:
+
+- Manually validate favorites screen on device/emulator: save, list, expand, remove.
+- Manually validate heart button on recipe result screen.
+- Validate dynamic `expo-constants` host resolution works on a physical device (confirm no "Request timed out" after IP change).
+- Wire the cook-recipe action into the mobile UI.

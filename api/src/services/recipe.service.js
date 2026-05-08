@@ -1,6 +1,7 @@
 import { generateRecipe } from "../adapters/recipe.provider.js";
 import { env } from "../config/env.js";
 import { logger } from "../lib/logger.js";
+import { computeEstimatedCalories } from "../lib/recipe-calories.js";
 import { computeMissingIngredients } from "../lib/missing-ingredients.js";
 import { findInventoryItemsByUserId } from "../repositories/inventory.repository.js";
 import {
@@ -121,12 +122,15 @@ export async function processRecipeJob(jobId) {
       queuedJob.inventorySnapshot
     );
 
+    const calories = computeEstimatedCalories(generatedRecipe.ingredients);
+
     const recipe = await createRecipeRecord({
       userId: queuedJob.userId,
       jobId: queuedJob._id,
       prompt: queuedJob.prompt,
       ...generatedRecipe,
-      missingIngredients
+      missingIngredients,
+      calories
     });
 
     await updateRecipeJobById(jobId, {

@@ -214,4 +214,203 @@ describe("computeMissingIngredients", () => {
     const inventory = [null, undefined, { name: null }, { name: "chicken" }];
     expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
   });
+
+  // ─── quantity-aware: same unit ───────────────────────────────────────────────
+
+  it("piece quantity enough: pantry egg 6 piece, recipe egg 2 piece → not missing", () => {
+    const ingredients = [{ name: "egg", quantity: 2, unit: "piece" }];
+    const inventory = [{ name: "egg", quantity: 6, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("piece quantity insufficient: pantry egg 1 piece, recipe egg 6 piece → missing", () => {
+    const ingredients = [{ name: "egg", quantity: 6, unit: "piece" }];
+    const inventory = [{ name: "egg", quantity: 1, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["egg"]);
+  });
+
+  it("exact quantity match is not missing", () => {
+    const ingredients = [{ name: "egg", quantity: 3, unit: "piece" }];
+    const inventory = [{ name: "egg", quantity: 3, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("gram quantity enough: pantry chicken 300 gram, recipe chicken 200 gram → not missing", () => {
+    const ingredients = [{ name: "chicken", quantity: 200, unit: "gram" }];
+    const inventory = [{ name: "chicken", quantity: 300, unit: "gram" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("gram quantity insufficient: pantry chicken 100 gram, recipe chicken 300 gram → missing", () => {
+    const ingredients = [{ name: "chicken", quantity: 300, unit: "gram" }];
+    const inventory = [{ name: "chicken", quantity: 100, unit: "gram" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["chicken"]);
+  });
+
+  it("ml quantity enough: pantry milk 500 ml, recipe milk 200 ml → not missing", () => {
+    const ingredients = [{ name: "milk", quantity: 200, unit: "ml" }];
+    const inventory = [{ name: "milk", quantity: 500, unit: "ml" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("ml quantity insufficient: pantry milk 100 ml, recipe milk 200 ml → missing", () => {
+    const ingredients = [{ name: "milk", quantity: 200, unit: "ml" }];
+    const inventory = [{ name: "milk", quantity: 100, unit: "ml" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["milk"]);
+  });
+
+  // ─── quantity-aware: unit mismatch ───────────────────────────────────────────
+
+  it("unit mismatch ml vs gram: pantry milk 500 ml, recipe milk 200 gram → missing", () => {
+    const ingredients = [{ name: "milk", quantity: 200, unit: "gram" }];
+    const inventory = [{ name: "milk", quantity: 500, unit: "ml" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["milk"]);
+  });
+
+  it("unit mismatch piece vs gram: pantry tomato 2 piece, recipe tomato 200 gram → missing", () => {
+    const ingredients = [{ name: "tomato", quantity: 200, unit: "gram" }];
+    const inventory = [{ name: "tomato", quantity: 2, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["tomato"]);
+  });
+
+  // ─── quantity-aware: multiple matching pantry items ──────────────────────────
+
+  it("multiple matching items are summed: 100g + 150g satisfies 200g", () => {
+    const ingredients = [{ name: "chicken", quantity: 200, unit: "gram" }];
+    const inventory = [
+      { name: "chicken", quantity: 100, unit: "gram" },
+      { name: "chicken", quantity: 150, unit: "gram" }
+    ];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("multiple matching items: incompatible unit item ignored, insufficient remainder → missing", () => {
+    const ingredients = [{ name: "chicken", quantity: 200, unit: "gram" }];
+    const inventory = [
+      { name: "chicken", quantity: 100, unit: "gram" },
+      { name: "chicken", quantity: 1, unit: "piece" }
+    ];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["chicken"]);
+  });
+
+  it("multiple matching items: all units match and total is sufficient", () => {
+    const ingredients = [{ name: "milk", quantity: 400, unit: "ml" }];
+    const inventory = [
+      { name: "milk", quantity: 200, unit: "ml" },
+      { name: "milk", quantity: 250, unit: "ml" }
+    ];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  // ─── quantity-aware: satisfier map with quantity ──────────────────────────────
+
+  it("satisfier map + quantity enough: pantry bread 100 gram, recipe breadcrumbs 50 gram → not missing", () => {
+    const ingredients = [{ name: "breadcrumbs", quantity: 50, unit: "gram" }];
+    const inventory = [{ name: "bread", quantity: 100, unit: "gram" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("satisfier map + quantity insufficient: pantry bread 20 gram, recipe breadcrumbs 50 gram → missing", () => {
+    const ingredients = [{ name: "breadcrumbs", quantity: 50, unit: "gram" }];
+    const inventory = [{ name: "bread", quantity: 20, unit: "gram" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["breadcrumbs"]);
+  });
+
+  it("satisfier map + pantry 0 piece: pantry bread 0 piece, recipe breadcrumbs 1 piece → missing", () => {
+    const ingredients = [{ name: "breadcrumbs", quantity: 1, unit: "piece" }];
+    const inventory = [{ name: "bread", quantity: 0, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["breadcrumbs"]);
+  });
+
+  it("satisfier map + unit mismatch: pantry bread 5 piece, recipe breadcrumbs 50 gram → missing", () => {
+    const ingredients = [{ name: "breadcrumbs", quantity: 50, unit: "gram" }];
+    const inventory = [{ name: "bread", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["breadcrumbs"]);
+  });
+
+  // ─── quantity-aware: invalid/missing quantity or unit ────────────────────────
+
+  it("invalid recipe quantity (string): treated as missing", () => {
+    const ingredients = [{ name: "pasta", quantity: "two", unit: "piece" }];
+    const inventory = [{ name: "pasta", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
+  });
+
+  it("invalid recipe quantity (NaN): treated as missing", () => {
+    const ingredients = [{ name: "pasta", quantity: NaN, unit: "piece" }];
+    const inventory = [{ name: "pasta", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
+  });
+
+  it("invalid recipe quantity (negative): treated as missing", () => {
+    const ingredients = [{ name: "pasta", quantity: -1, unit: "piece" }];
+    const inventory = [{ name: "pasta", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
+  });
+
+  it("invalid recipe unit (empty string): treated as missing", () => {
+    const ingredients = [{ name: "pasta", quantity: 2, unit: "" }];
+    const inventory = [{ name: "pasta", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
+  });
+
+  it("quantity present but unit null: treated as missing", () => {
+    const ingredients = [{ name: "pasta", quantity: 2, unit: null }];
+    const inventory = [{ name: "pasta", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
+  });
+
+  it("unit present but quantity null: treated as missing", () => {
+    const ingredients = [{ name: "pasta", quantity: null, unit: "piece" }];
+    const inventory = [{ name: "pasta", quantity: 5, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["pasta"]);
+  });
+
+  it("invalid pantry quantity: that item is ignored, ingredient becomes missing", () => {
+    const ingredients = [{ name: "chicken", quantity: 1, unit: "piece" }];
+    const inventory = [{ name: "chicken", quantity: "heavy", unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["chicken"]);
+  });
+
+  it("pantry item with zero quantity does not satisfy a nonzero recipe requirement", () => {
+    const ingredients = [{ name: "egg", quantity: 1, unit: "piece" }];
+    const inventory = [{ name: "egg", quantity: 0, unit: "piece" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["egg"]);
+  });
+
+  it("recipe quantity 0 is always satisfied regardless of pantry", () => {
+    const ingredients = [{ name: "salt", quantity: 0, unit: "gram" }];
+    const inventory = [];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  // ─── case/whitespace normalization still works with quantity ─────────────────
+
+  it("case and whitespace normalization applies to ingredient names with qty/unit", () => {
+    const ingredients = [{ name: "  Chicken Breast  ", quantity: 100, unit: "gram" }];
+    const inventory = [{ name: "CHICKEN BREAST", quantity: 200, unit: "gram" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  it("unit normalization: uppercase unit in pantry matches lowercase in recipe", () => {
+    const ingredients = [{ name: "milk", quantity: 100, unit: "ml" }];
+    const inventory = [{ name: "milk", quantity: 200, unit: "ML" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual([]);
+  });
+
+  // ─── mixed presence-only and quantity-aware in same call ─────────────────────
+
+  it("mixed: ingredient without qty/unit uses presence-only, ingredient with qty/unit uses quantity check", () => {
+    const ingredients = [
+      { name: "salt" },                                   // presence-only
+      { name: "chicken", quantity: 200, unit: "gram" }    // quantity-aware
+    ];
+    const inventory = [
+      { name: "salt", quantity: 10, unit: "gram" },
+      { name: "chicken", quantity: 100, unit: "gram" }    // only 100g, need 200g
+    ];
+    // salt: presence-only → in pantry → not missing
+    // chicken: quantity-aware → 100 < 200 → missing
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["chicken"]);
+  });
 });
