@@ -893,4 +893,64 @@ describe("backend", () => {
     expect(response.status).toBe(401);
     expect(response.body.code).toBe("AUTH_REQUIRED");
   });
+
+  it("backend overwrites provider missingIngredients with recomputed values", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "missing-override@example.com"
+    });
+
+    // 1 pantry item → mock provider returns ["salt", "black pepper"] as missingIngredients.
+    // Backend recomputes: recipe ingredient "Chicken" is in pantry → missingIngredients = [].
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Chicken",
+      quantity: 2,
+      unit: "piece"
+    });
+
+    const createJobResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({ prompt: "chicken dinner" });
+
+    expect(createJobResponse.status).toBe(202);
+
+    const jobResponse = await waitForRecipeJobCompletion(session.authHeader, createJobResponse.body.jobId);
+
+    expect(jobResponse.body.status).toBe("completed");
+
+    const recipeResponse = await request(app)
+      .get(`/api/recipes/${jobResponse.body.recipeId}`)
+      .set("Authorization", session.authHeader);
+
+    expect(recipeResponse.status).toBe(200);
+    // Mock provider would have said ["salt", "black pepper"]; backend recomputes to [].
+    expect(recipeResponse.body.recipe.missingIngredients).toEqual([]);
+  });
+
+  it("missingIngredients lists pantry-absent recipe ingredients", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "missing-absent@example.com"
+    });
+
+    // Empty pantry → all recipe ingredients are missing.
+    const createJobResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({ prompt: "simple pasta" });
+
+    const jobResponse = await waitForRecipeJobCompletion(session.authHeader, createJobResponse.body.jobId);
+    const recipeResponse = await request(app)
+      .get(`/api/recipes/${jobResponse.body.recipeId}`)
+      .set("Authorization", session.authHeader);
+
+    expect(recipeResponse.status).toBe(200);
+
+    const { recipe } = recipeResponse.body;
+
+    // Every recipe ingredient must appear in missingIngredients (pantry is empty).
+    const ingredientNames = recipe.ingredients.map((i) => i.name);
+    for (const name of ingredientNames) {
+      expect(recipe.missingIngredients).toContain(name);
+    }
+  });
 });

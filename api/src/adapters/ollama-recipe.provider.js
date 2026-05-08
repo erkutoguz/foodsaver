@@ -16,7 +16,12 @@ const ollamaRecipeSchema = z.object({
   steps: z.array(z.string().trim().min(1)).min(2).max(8).describe("Cooking steps."),
   estimatedTimeMinutes: z.number().int().min(5).max(180).describe("Estimated cooking time in minutes."),
   calories: z.number().int().min(0).max(2500).describe("Estimated calories for the full recipe."),
-  missingIngredients: z.array(z.string().trim().min(1)).max(8).describe("Ingredients the user may still need.")
+  missingIngredients: z
+    .array(z.string().trim().min(1))
+    .max(8)
+    .describe(
+      "Recipe ingredients from the ingredients list that are required but NOT present in the provided inventory. Do not include pantry items that are not part of the recipe. Do not add items that are not in the ingredients list."
+    )
 });
 
 function getOllamaModel() {
@@ -85,7 +90,10 @@ function buildUserMessage({ prompt, inventoryItems }) {
     "- Use only these units for ingredients: piece, gram, ml.",
     "- Keep the recipe realistic and simple for a student user.",
     "- Return estimatedTimeMinutes and calories as numbers.",
-    "- Put unavailable but useful items into missingIngredients.",
+    "- The ingredients list must include ALL ingredients the recipe requires, including both available and unavailable ones.",
+    "- In missingIngredients, list ONLY recipe ingredients that are required but not present in the available inventory.",
+    "- Do not add items to missingIngredients that are not in the ingredients list.",
+    "- Do not add pantry items to missingIngredients.",
     "- Interpret the user prompt even if it is not in English.",
     "- Always return English values for title, ingredient names, steps, and missingIngredients.",
     "- Do not translate JSON keys; only generate English field values."

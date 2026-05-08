@@ -915,7 +915,7 @@ Remaining issues:
 - The Home dashboard refresh-on-focus behavior still needs manual device/emulator verification after pantry create/delete actions.
 - The updated recipe progress screen still needs manual device/emulator verification to confirm spacing, readability, and stage-state transitions during live polling.
 
-Next recommended task:
+Next recommended task (before this session):
 
  - Fix local backend environment so `npm run dev` can fully come up:
    - verify the active backend `.env`
@@ -927,3 +927,82 @@ Next recommended task:
    - manually validate recipe generation progress UI on device/emulator
    - recipe cook action
    - favorites/history views
+
+---
+
+## Session Change Log — missingIngredients backend authority + Favorites screen
+
+What changed:
+
+- Added `computeMissingIngredients` pure helper in [api/src/lib/missing-ingredients.js](/home/erkut/bitirme/api/src/lib/missing-ingredients.js):
+  - presence-based matching only (no quantity-awareness, no fuzzy/semantic matching)
+  - name normalization: lowercase, trim, collapse whitespace, remove punctuation/separators
+  - exact normalized match
+  - curated one-way satisfier map: `bread → [breadcrumbs, bread crumbs, panko]`, `onion → [chopped onion, diced onion, sliced onion]`, `garlic → [minced garlic, chopped garlic]`, `cheese → [grated cheese, shredded cheese]`
+  - safe fallback when inventory snapshot is not an array: all valid recipe ingredients become missing
+  - deduplication by normalized name, order preserved from recipe ingredient list
+- Updated [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js):
+  - after provider generates recipe, calls `computeMissingIngredients(generatedRecipe.ingredients, queuedJob.inventorySnapshot)`
+  - overwrites `missingIngredients` in the record persisted to MongoDB
+  - provider-returned `missingIngredients` is now ignored entirely
+  - `generatedRecipe` object is not mutated; a new object is spread with the overwritten field
+- Updated [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js):
+  - tightened Zod schema description for `missingIngredients` field
+  - tightened user message constraints: `ingredients` must be complete required list; `missingIngredients` must only contain recipe ingredients absent from inventory; pantry items must never appear in `missingIngredients`
+- Added [mobile/src/services/favorite-service.js](/home/erkut/bitirme/mobile/src/services/favorite-service.js):
+  - `getFavoritesRequest`, `addFavoriteRequest`, `removeFavoriteRequest` wired to existing backend endpoints
+- Updated [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js):
+  - favorite toggle button with `Ionicons` heart icon (filled vs outline)
+  - `checkFavoriteStatus` called after recipe loads; `handleToggleFavorite` calls add/remove API
+- Added [mobile/src/screens/FavoritesScreen.js](/home/erkut/bitirme/mobile/src/screens/FavoritesScreen.js):
+  - `FavoriteRecipeCard` inline component with expand/collapse, inline remove (heart icon → spinner)
+  - `useFocusEffect` refresh on tab focus, pull-to-refresh
+  - loading / error / empty states
+- Updated [mobile/src/navigation/AppNavigator.js](/home/erkut/bitirme/mobile/src/navigation/AppNavigator.js):
+  - added Favorites tab with heart icon between Recipes and Profile
+- Updated [mobile/src/config/env.js](/home/erkut/bitirme/mobile/src/config/env.js):
+  - API base URL now derived from `Constants.expoConfig.hostUri` at runtime; no hardcoded IP required
+- Installed `expo-constants` in mobile app for the dynamic host resolution
+
+Files changed:
+
+- [api/src/lib/missing-ingredients.js](/home/erkut/bitirme/api/src/lib/missing-ingredients.js) ← new
+- [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js)
+- [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
+- [api/tests/missing-ingredients.test.js](/home/erkut/bitirme/api/tests/missing-ingredients.test.js) ← new
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+- [mobile/src/services/favorite-service.js](/home/erkut/bitirme/mobile/src/services/favorite-service.js) ← new
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
+- [mobile/src/screens/FavoritesScreen.js](/home/erkut/bitirme/mobile/src/screens/FavoritesScreen.js) ← new
+- [mobile/src/navigation/AppNavigator.js](/home/erkut/bitirme/mobile/src/navigation/AppNavigator.js)
+- [mobile/src/config/env.js](/home/erkut/bitirme/mobile/src/config/env.js)
+- [mobile/package.json](/home/erkut/bitirme/mobile/package.json) (expo-constants added)
+
+Commands run:
+
+- `cd api && npx vitest run tests/missing-ingredients.test.js`
+- `cd api && npx vitest run`
+
+Test results:
+
+- `missing-ingredients.test.js`: 34/34 passed
+- `ollama-recipe-provider.test.js`: 16/16 passed
+- `backend.test.js`: 42/42 passed (includes 2 new integration tests)
+- Full suite: 92/92 passed across 3 test files
+
+Remaining issues:
+
+- `computeMissingIngredients` is presence-based only; quantity-aware matching is not implemented.
+- Satisfier map is narrow and curated; semantic/fuzzy ingredient matching is not implemented.
+- Mobile recipe polling does not resume across screen exits or app restarts.
+- Mobile still has no frontend automated test/lint/format pipeline.
+- AI image recognition is mock-only.
+- Notification flow is missing.
+- Manual device/emulator verification for new mobile screens (Favorites, recipe heart button, env.js dynamic URL) is still pending.
+
+Next recommended task:
+
+- Manually validate favorites screen on device/emulator: save, list, expand, remove.
+- Manually validate heart button on recipe result screen.
+- Validate dynamic `expo-constants` host resolution works on a physical device (confirm no "Request timed out" after IP change).
+- Consider wiring the cook-recipe action into the mobile UI.
