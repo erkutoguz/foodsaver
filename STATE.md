@@ -1293,3 +1293,69 @@ Next recommended task:
 - Manually verify History screen on device: empty state, post-cook entry, expand/collapse, pull-to-refresh, error retry
 - Manually verify Pantry tab refresh on focus after adding or deleting items
 - Wire inventory edit (PATCH /api/inventory/:id) — backend already supports it, mobile has no UI for it
+
+---
+
+## Session Change Log — mobile inventory item edit (PATCH)
+
+What changed:
+
+- Added `updateInventoryItemRequest(token, itemId, payload)` to [mobile/src/services/inventory-service.js](mobile/src/services/inventory-service.js): calls `PATCH /api/inventory/:id` using the existing `patchRequest` helper; added `patchRequest` to imports.
+- Updated [mobile/src/screens/InventoryScreen.js](mobile/src/screens/InventoryScreen.js):
+  - Added state: `editingItemId` (the id of the item being edited, or null), `isUpdatingItem` (in-flight guard)
+  - Added `startEditItem(item)`: populates all form fields from the item's current values, sets `editingItemId`
+  - Added `cancelEditItem()`: clears `editingItemId` and resets all form fields back to blank add mode
+  - Added `handleUpdateItem()`: same validation as create; calls `updateInventoryItemRequest`; on success updates the item in local state via `setItems` map (no full refetch); calls `cancelEditItem()` to exit edit mode; on failure keeps form values and shows error
+  - Updated `handleDeleteItem`: after successful delete, calls `cancelEditItem()` if the deleted item was the one in edit mode
+  - Form InfoCard title is now dynamic: "Edit pantry item" in edit mode, "Add pantry item" otherwise
+  - Submit button label/onPress/loading/disabled all switch based on `editingItemId`
+  - "Cancel edit" Pressable shown below submit button only in edit mode
+  - Card action row now shows both Edit (brand blue) and Delete (tomato) buttons side by side
+  - When a specific item is being updated: shows "Saving changes..." text instead of buttons for that card
+  - Updated `cardActionRow` style: `flexDirection: "row"`, `justifyContent: "flex-end"`, `gap: 8`
+  - Added `editButton`, `editButtonText`, `cancelEditButton`, `cancelEditText` styles
+
+Files changed:
+
+- [mobile/src/services/inventory-service.js](mobile/src/services/inventory-service.js)
+- [mobile/src/screens/InventoryScreen.js](mobile/src/screens/InventoryScreen.js)
+
+Commands run:
+
+- None (no backend changes; no new dependencies)
+
+Test results:
+
+- Backend tests unchanged (no backend changes)
+- No frontend automated tests exist for mobile
+
+Manual QA scenarios (to verify on device):
+
+- Each pantry item card shows Edit and Delete buttons ← pending device verification
+- Tapping Edit fills form fields with item's current values ← pending
+- Form title changes to "Edit pantry item" ← pending
+- Submit button label changes to "Save changes" ← pending
+- Cancel edit resets form to blank add mode ← pending
+- Editing name / quantity / unit / category / expiresAt saves successfully via PATCH ← pending
+- Item updates in the list immediately after API success ← pending
+- "Saving changes..." shown while update is in progress ← pending
+- Duplicate submit prevented while saving (button disabled) ← pending
+- Failed update (e.g. network error) keeps form values and shows error ← pending
+- Deleting the currently edited item clears edit mode ← pending
+- Add item flow still works ← pending
+- Delete item flow still works ← pending
+- Refresh still works ← pending
+
+Remaining issues:
+
+- All new edit behaviors pending device/emulator verification
+- expiresAt: null is sent explicitly when user clears expiration in edit mode — backend accepts this (schema: `.or(z.literal(null))`)
+- Mobile still has no frontend automated test/lint/format pipeline
+- AI image recognition is mock-only
+- Notification flow is missing
+
+Next recommended task:
+
+- Manually verify Pantry edit flow on device: tap Edit, modify fields, save, cancel, error case
+- Manually verify History screen on device
+- Manually verify Cook recipe + History tab end-to-end flow

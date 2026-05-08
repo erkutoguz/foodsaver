@@ -9,7 +9,8 @@ import { ScreenShell } from "../components/ScreenShell";
 import {
   createInventoryRequest,
   deleteInventoryItemRequest,
-  getInventoryRequest
+  getInventoryRequest,
+  updateInventoryItemRequest
 } from "../services/inventory-service";
 import { useAuthStore } from "../store/auth-store";
 import { colors } from "../theme/colors";
@@ -29,6 +30,8 @@ export function InventoryScreen() {
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState(null);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [isUpdatingItem, setIsUpdatingItem] = useState(false);
 
   async function loadInventory() {
     if (!token) {
@@ -102,6 +105,80 @@ export function InventoryScreen() {
     }
   }
 
+  function startEditItem(item) {
+    setEditingItemId(item.id);
+    setName(item.name);
+    setQuantity(String(item.quantity));
+    setUnit(item.unit);
+    setCategory(item.category || "");
+    setExpiresAt(item.expiresAt ? new Date(item.expiresAt) : null);
+    setFormError("");
+    setShowDatePicker(false);
+    setShowTimePicker(false);
+  }
+
+  function cancelEditItem() {
+    setEditingItemId(null);
+    setName("");
+    setQuantity("");
+    setUnit("piece");
+    setCategory("");
+    setExpiresAt(null);
+    setFormError("");
+    setShowDatePicker(false);
+    setShowTimePicker(false);
+  }
+
+  async function handleUpdateItem() {
+    const trimmedName = name.trim();
+    const trimmedCategory = category.trim();
+    const parsedQuantity = Number(quantity);
+
+    if (!trimmedName) {
+      setFormError("Please enter an item name.");
+      return;
+    }
+
+    if (!quantity || Number.isNaN(parsedQuantity) || parsedQuantity <= 0) {
+      setFormError("Please enter a valid quantity.");
+      return;
+    }
+
+    if (expiresAt && Number.isNaN(expiresAt.getTime())) {
+      setFormError("Please choose a valid expiration date and time.");
+      return;
+    }
+
+    if (!token) {
+      setFormError("You need to be signed in.");
+      return;
+    }
+
+    setFormError("");
+    setIsUpdatingItem(true);
+
+    try {
+      const result = await updateInventoryItemRequest(token, editingItemId, {
+        name: trimmedName,
+        quantity: parsedQuantity,
+        unit,
+        category: trimmedCategory || undefined,
+        expiresAt: expiresAt ? expiresAt.toISOString() : null
+      });
+
+      setItems((currentItems) =>
+        currentItems.map((currentItem) =>
+          currentItem.id === editingItemId ? result.item : currentItem
+        )
+      );
+      cancelEditItem();
+    } catch (error) {
+      setFormError(error.message || "Could not save changes.");
+    } finally {
+      setIsUpdatingItem(false);
+    }
+  }
+
   async function handleDeleteItem(item) {
     if (!token || deletingItemId === item.id) {
       return;
@@ -112,6 +189,9 @@ export function InventoryScreen() {
     try {
       await deleteInventoryItemRequest(token, item.id);
       setItems((currentItems) => currentItems.filter((currentItem) => currentItem.id !== item.id));
+      if (editingItemId === item.id) {
+        cancelEditItem();
+      }
     } catch (error) {
       Alert.alert("Could not delete item", error.message || "Please try again.");
     } finally {
@@ -208,7 +288,7 @@ export function InventoryScreen() {
       title="Inventory"
       description="You will see, edit, and track the expiration dates of your kitchen items here."
     >
-      <InfoCard title="Add pantry item">
+      <InfoCard title={editingItemId ? "Edit pantry item" : "Add pantry item"}>
         <View style={styles.formList}>
           <FormField
             label="Item name"
@@ -313,11 +393,17 @@ export function InventoryScreen() {
         {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
         <PrimaryButton
-          label="Add item"
-          onPress={handleCreateItem}
-          loading={isSubmitting}
-          disabled={isSubmitting}
+          label={editingItemId ? "Save changes" : "Add item"}
+          onPress={editingItemId ? handleUpdateItem : handleCreateItem}
+          loading={editingItemId ? isUpdatingItem : isSubmitting}
+          disabled={editingItemId ? isUpdatingItem : isSubmitting}
         />
+
+        {editingItemId ? (
+          <Pressable onPress={cancelEditItem} style={styles.cancelEditButton}>
+            <Text style={styles.cancelEditText}>Cancel edit</Text>
+          </Pressable>
+        ) : null}
       </InfoCard>
 
       {isLoading ? (
@@ -392,12 +478,19 @@ export function InventoryScreen() {
                   </Text>
                 </View>
                 <View style={styles.cardActionRow}>
-                  {deletingItemId === item.id ? (
+                  {editingItemId === item.id && isUpdatingItem ? (
+                    <Text style={styles.deleteLoadingText}>Saving changes...</Text>
+                  ) : deletingItemId === item.id ? (
                     <Text style={styles.deleteLoadingText}>Deleting item...</Text>
                   ) : (
-                    <Pressable onPress={() => confirmDeleteItem(item)} style={styles.deleteButton}>
-                      <Text style={styles.deleteButtonText}>Delete</Text>
-                    </Pressable>
+                    <>
+                      <Pressable onPress={() => startEditItem(item)} style={styles.editButton}>
+                        <Text style={styles.editButtonText}>Edit</Text>
+                      </Pressable>
+                      <Pressable onPress={() => confirmDeleteItem(item)} style={styles.deleteButton}>
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      </Pressable>
+                    </>
                   )}
                 </View>
               </View>
@@ -696,7 +789,22 @@ const styles = StyleSheet.create({
   },
   cardActionRow: {
     paddingTop: 6,
-    alignItems: "flex-end"
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 8
+  },
+  editButton: {
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#93c5fd",
+    backgroundColor: colors.brandSoft,
+    paddingHorizontal: 12,
+    paddingVertical: 8
+  },
+  editButtonText: {
+    color: colors.brand,
+    fontSize: 12,
+    fontWeight: "700"
   },
   deleteButton: {
     borderRadius: 999,
@@ -714,6 +822,16 @@ const styles = StyleSheet.create({
   deleteLoadingText: {
     color: colors.slate,
     fontSize: 12,
+    fontWeight: "700"
+  },
+  cancelEditButton: {
+    alignSelf: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 4
+  },
+  cancelEditText: {
+    color: colors.slate,
+    fontSize: 13,
     fontWeight: "700"
   }
 });
