@@ -56,9 +56,7 @@ export function ProfileScreen() {
 
       <PrimaryButton label="Sign out" variant="secondary" onPress={logout} />
 
-      <Text style={styles.note}>
-        Signing out clears the saved session on this device and takes you back to the landing screen.
-      </Text>
+     
     </ScreenShell>
   );
 }

@@ -11,6 +11,7 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { InventoryScreen } from "../screens/InventoryScreen";
 import { LandingScreen } from "../screens/LandingScreen";
 import { FavoritesScreen } from "../screens/FavoritesScreen";
+import { HistoryScreen } from "../screens/HistoryScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { RecipesScreen } from "../screens/RecipesScreen";
 
@@ -56,6 +57,7 @@ function MainTabs() {
             Pantry: focused ? "basket" : "basket-outline",
             Recipes: focused ? "restaurant" : "restaurant-outline",
             Favorites: focused ? "heart" : "heart-outline",
+            History: focused ? "time" : "time-outline",
             Profile: focused ? "person-circle" : "person-circle-outline"
           };
 
@@ -93,6 +95,14 @@ function MainTabs() {
         options={{
           title: "Favorites",
           tabBarLabel: "Favorites"
+        }}
+      />
+      <Tab.Screen
+        name="History"
+        component={HistoryScreen}
+        options={{
+          title: "History",
+          tabBarLabel: "History"
         }}
       />
       <Tab.Screen

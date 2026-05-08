@@ -1219,3 +1219,77 @@ Remaining issues:
 Next recommended task:
 
 - Add a History screen and wire it from the Profile tab or add a History tab to show the full cooking log.
+
+---
+
+## Session Change Log — mobile History screen + InventoryScreen focus refresh
+
+What changed:
+
+- Added [mobile/src/screens/HistoryScreen.js](/home/erkut/bitirme/mobile/src/screens/HistoryScreen.js):
+  - Fetches `GET /api/history` via existing `getHistoryRequest`
+  - `useFocusEffect` refresh every time the tab is visited
+  - Pull-to-refresh via `RefreshControl`
+  - Loading / error (with retry button) / empty (with "Generate a recipe" CTA to Recipes tab) / success states
+  - `HistoryRecipeCard` inline component: title + cookedAt in header, prompt line, expand/collapse for consumed ingredients
+  - Expand shows "Ingredients used" list from `consumedIngredients`
+  - Collapse/expand with `Read more` / `Show less` + chevron icon, stable local state per card
+  - Note: history API returns `title`, `prompt`, `consumedIngredients`, `cookedAt` only — `steps`, `calories`, `estimatedTimeMinutes` are not available from `GET /api/history` (they live on the Recipe model, not RecipeHistory)
+- Updated [mobile/src/navigation/AppNavigator.js](/home/erkut/bitirme/mobile/src/navigation/AppNavigator.js):
+  - Added `HistoryScreen` import
+  - Added `History: focused ? "time" : "time-outline"` to icon map
+  - Added `History` tab between Favorites and Profile
+- Fixed [mobile/src/screens/InventoryScreen.js](/home/erkut/bitirme/mobile/src/screens/InventoryScreen.js):
+  - Replaced `useEffect(() => { loadInventory(); }, [token])` with `useFocusEffect(useCallback(() => { void loadInventory(); }, [token]))` so pantry data reloads every time the Pantry tab is visited (same pattern as HomeScreen and FavoritesScreen)
+  - Import already updated to `useFocusEffect` + `useCallback` from prior session
+
+Files changed:
+
+- [mobile/src/screens/HistoryScreen.js](/home/erkut/bitirme/mobile/src/screens/HistoryScreen.js) ← new
+- [mobile/src/navigation/AppNavigator.js](/home/erkut/bitirme/mobile/src/navigation/AppNavigator.js)
+- [mobile/src/screens/InventoryScreen.js](/home/erkut/bitirme/mobile/src/screens/InventoryScreen.js)
+
+Commands run:
+
+- None (no backend changes; no installable dependencies; no test runner for mobile)
+
+Test results:
+
+- Backend tests unchanged: 156/156 passing (no backend changes)
+- No frontend automated tests exist for mobile
+
+Manual QA scenarios (to verify on device):
+
+- History tab appears in bottom nav with clock icon ← pending device verification
+- Tapping History tab fetches GET /api/history ← pending
+- Loading spinner shows while fetching ← pending
+- Empty state shows with "Generate a recipe" CTA when no history ← pending
+- CTA navigates to Recipes tab ← pending
+- After cooking a recipe, History shows the entry ← pending
+- Each card shows title, cookedAt date, and prompt (collapsed to 1 line) ← pending
+- "Read more" expands card to show consumed ingredients ← pending
+- "Show less" collapses card again ← pending
+- Pull-to-refresh reloads history list ← pending
+- API failure shows error message with "Try again" button ← pending
+- "Try again" retries the fetch ← pending
+- Favorites screen still works ← pending
+- Cook recipe action still works ← pending
+- Pantry tab now reloads data every time it is visited ← pending
+
+Remaining issues:
+
+- History card does not show steps, calories, or estimated time — these fields are not returned by `GET /api/history` (RecipeHistory model stores only `title`, `prompt`, `consumedIngredients`, `cookedAt`)
+- Bottom tab bar now has 6 tabs (Home, Pantry, Recipes, Favorites, History, Profile); may be visually tight on narrow devices — consider consolidating if user feedback indicates crowding
+- Missing ingredients card still hidden when empty (no positive confirmation shown)
+- Mobile recipe polling does not resume across screen exits or app restarts
+- Mobile still has no frontend automated test/lint/format pipeline
+- AI image recognition is mock-only
+- Notification flow is missing
+- Inventory edit not wired on mobile
+- All new mobile screens pending device/emulator verification
+
+Next recommended task:
+
+- Manually verify History screen on device: empty state, post-cook entry, expand/collapse, pull-to-refresh, error retry
+- Manually verify Pantry tab refresh on focus after adding or deleting items
+- Wire inventory edit (PATCH /api/inventory/:id) — backend already supports it, mobile has no UI for it
