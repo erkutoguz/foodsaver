@@ -1,5 +1,6 @@
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useEffect, useRef, useState } from "react";
+import { Ionicons } from "@expo/vector-icons";
 import { FormField } from "../components/FormField";
 import { InfoCard } from "../components/InfoCard";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -9,6 +10,11 @@ import {
   getRecipeDetailRequest,
   getRecipeJobRequest
 } from "../services/recipe-service";
+import {
+  addFavoriteRequest,
+  getFavoritesRequest,
+  removeFavoriteRequest
+} from "../services/favorite-service";
 import { useAuthStore } from "../store/auth-store";
 import { colors } from "../theme/colors";
 
@@ -26,6 +32,8 @@ export function RecipesScreen() {
   const [isCreatingJob, setIsCreatingJob] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [isFetchingRecipe, setIsFetchingRecipe] = useState(false);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
   const pollIntervalRef = useRef(null);
   const pollTimeoutRef = useRef(null);
   const activeJobIdRef = useRef(null);
@@ -57,7 +65,41 @@ export function RecipesScreen() {
     setIsCreatingJob(false);
     setIsPolling(false);
     setIsFetchingRecipe(false);
+    setIsFavorite(false);
+    setIsFavoriteLoading(false);
     setPrompt("");
+  }
+
+  async function checkFavoriteStatus(recipeId) {
+    try {
+      const result = await getFavoritesRequest(token);
+      const favorites = result?.favorites || [];
+      setIsFavorite(favorites.some((f) => f.recipeId === recipeId));
+    } catch {
+      // non-critical — leave isFavorite as false
+    }
+  }
+
+  async function handleToggleFavorite() {
+    if (!recipe || isFavoriteLoading) {
+      return;
+    }
+
+    setIsFavoriteLoading(true);
+
+    try {
+      if (isFavorite) {
+        await removeFavoriteRequest(token, recipe.id);
+        setIsFavorite(false);
+      } else {
+        await addFavoriteRequest(token, recipe.id);
+        setIsFavorite(true);
+      }
+    } catch (error) {
+      // silently ignore — state stays as-is
+    } finally {
+      setIsFavoriteLoading(false);
+    }
   }
 
   async function loadRecipeDetail(recipeId, expectedJobId) {
@@ -83,6 +125,7 @@ export function RecipesScreen() {
       setRecipe(result.recipe);
       setViewMode("result");
       setErrorMessage("");
+      void checkFavoriteStatus(result.recipe.id);
     } catch (error) {
       if (!isMountedRef.current || activeJobIdRef.current !== expectedJobId) {
         return;
@@ -355,6 +398,28 @@ export function RecipesScreen() {
                   <Text style={styles.metaPillText}>{recipe.calories} cal</Text>
                 </View>
               </View>
+
+              <TouchableOpacity
+                style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+                onPress={handleToggleFavorite}
+                disabled={isFavoriteLoading}
+                activeOpacity={0.75}
+              >
+                {isFavoriteLoading ? (
+                  <ActivityIndicator size="small" color={isFavorite ? colors.card : colors.brand} />
+                ) : (
+                  <>
+                    <Ionicons
+                      name={isFavorite ? "heart" : "heart-outline"}
+                      size={15}
+                      color={isFavorite ? colors.card : colors.brand}
+                    />
+                    <Text style={[styles.favoriteButtonText, isFavorite && styles.favoriteButtonTextActive]}>
+                      {isFavorite ? "Saved" : "Save"}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
             </View>
           </InfoCard>
 
@@ -530,6 +595,31 @@ const styles = StyleSheet.create({
     color: colors.slate,
     fontSize: 14,
     lineHeight: 20
+  },
+  favoriteButton: {
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    borderRadius: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: colors.brand,
+    backgroundColor: colors.card,
+    minWidth: 80
+  },
+  favoriteButtonActive: {
+    backgroundColor: colors.brand,
+    borderColor: colors.brand
+  },
+  favoriteButtonText: {
+    color: colors.brand,
+    fontSize: 13,
+    fontWeight: "700"
+  },
+  favoriteButtonTextActive: {
+    color: colors.card
   },
   metaRow: {
     flexDirection: "row",
