@@ -24,3 +24,11 @@ export function getRecipeDetailRequest(token, recipeId) {
     }
   });
 }
+
+export function cookRecipeRequest(token, recipeId) {
+  return postRequest(API_PATHS.recipes.cook(recipeId), {}, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}

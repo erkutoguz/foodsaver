@@ -1,4 +1,4 @@
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { FormField } from "../components/FormField";
@@ -6,6 +6,7 @@ import { InfoCard } from "../components/InfoCard";
 import { PrimaryButton } from "../components/PrimaryButton";
 import { ScreenShell } from "../components/ScreenShell";
 import {
+  cookRecipeRequest,
   createRecipeJobRequest,
   getRecipeDetailRequest,
   getRecipeJobRequest
@@ -34,6 +35,9 @@ export function RecipesScreen() {
   const [isFetchingRecipe, setIsFetchingRecipe] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isFavoriteLoading, setIsFavoriteLoading] = useState(false);
+  const [isCookingRecipe, setIsCookingRecipe] = useState(false);
+  const [hasCookedRecipe, setHasCookedRecipe] = useState(false);
+  const [cookError, setCookError] = useState("");
   const pollIntervalRef = useRef(null);
   const pollTimeoutRef = useRef(null);
   const activeJobIdRef = useRef(null);
@@ -67,6 +71,9 @@ export function RecipesScreen() {
     setIsFetchingRecipe(false);
     setIsFavorite(false);
     setIsFavoriteLoading(false);
+    setIsCookingRecipe(false);
+    setHasCookedRecipe(false);
+    setCookError("");
     setPrompt("");
   }
 
@@ -100,6 +107,36 @@ export function RecipesScreen() {
     } finally {
       setIsFavoriteLoading(false);
     }
+  }
+
+  function handleCookRecipe() {
+    if (!recipe || isCookingRecipe || hasCookedRecipe) {
+      return;
+    }
+
+    Alert.alert(
+      "Cook this recipe?",
+      "Matching ingredients will be removed from your pantry and this recipe will be added to your cooking history.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Cook recipe",
+          onPress: async () => {
+            setIsCookingRecipe(true);
+            setCookError("");
+
+            try {
+              await cookRecipeRequest(token, recipe.id);
+              setHasCookedRecipe(true);
+            } catch (error) {
+              setCookError(error.message || "Could not cook recipe. Please try again.");
+            } finally {
+              setIsCookingRecipe(false);
+            }
+          }
+        }
+      ]
+    );
   }
 
   async function loadRecipeDetail(recipeId, expectedJobId) {
@@ -458,7 +495,15 @@ export function RecipesScreen() {
 
           <View style={styles.buttonStack}>
             <PrimaryButton
+              label={hasCookedRecipe ? "Cooked" : isCookingRecipe ? "Cooking..." : "Cook recipe"}
+              onPress={handleCookRecipe}
+              loading={isCookingRecipe}
+              disabled={isCookingRecipe || hasCookedRecipe}
+            />
+            {cookError ? <Text style={styles.cookError}>{cookError}</Text> : null}
+            <PrimaryButton
               label="Generate another"
+              variant="secondary"
               onPress={resetToFormMode}
             />
           </View>
@@ -590,6 +635,12 @@ const styles = StyleSheet.create({
   },
   buttonStack: {
     gap: 10
+  },
+  cookError: {
+    color: colors.tomato,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "600"
   },
   recipePrompt: {
     color: colors.slate,

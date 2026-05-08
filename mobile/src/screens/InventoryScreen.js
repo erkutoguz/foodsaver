@@ -1,6 +1,7 @@
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { useEffect, useState } from "react";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useState } from "react";
 import { FormField } from "../components/FormField";
 import { InfoCard } from "../components/InfoCard";
 import { PrimaryButton } from "../components/PrimaryButton";
@@ -140,9 +141,11 @@ export function InventoryScreen() {
     );
   }
 
-  useEffect(() => {
-    loadInventory();
-  }, [token]);
+  useFocusEffect(
+    useCallback(() => {
+      void loadInventory();
+    }, [token])
+  );
 
   function openExpirationPicker() {
     if (Platform.OS === "ios") {

@@ -1161,3 +1161,61 @@ Remaining issues:
 - ml only accepted for a fixed allow-list of liquid-like ingredients
 - Mobile device/emulator verification for favorites, heart button, and dynamic host resolution still pending
 - Cook-recipe action not yet wired in mobile UI
+
+---
+
+## Session Change Log — mobile Cook recipe action
+
+What changed:
+
+- Added `cookRecipeRequest(token, recipeId)` to [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js): calls `POST /api/recipes/:id/cook` using the existing `postRequest` helper.
+- Updated [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js):
+  - Added `Alert` to react-native imports
+  - Added `cookRecipeRequest` to service imports
+  - Added three state vars: `isCookingRecipe`, `hasCookedRecipe`, `cookError`
+  - All three reset in `resetToFormMode()` so each new recipe starts clean
+  - Added `handleCookRecipe()`: shows native Alert with Cancel / Cook recipe; on confirm calls API; on success sets `hasCookedRecipe = true`; on failure sets `cookError`; duplicate requests prevented by guard + disabled state
+  - Cook recipe button added to result view buttonStack (primary style, above "Generate another")
+  - Button label cycles: "Cook recipe" → "Cooking..." (loading) → "Cooked" (disabled after success)
+  - Error message shown in tomato color between buttons when cook fails
+  - "Generate another" demoted to secondary variant
+
+Files changed:
+
+- [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
+
+Commands run:
+
+- `cd api && npx vitest run`
+
+Test results:
+
+- All 156 backend tests pass (no regressions)
+- No frontend automated tests exist for mobile
+
+Manual check scenarios (to verify on device):
+- Recipe result shows "Cook recipe" button ← pending device verification
+- Tap opens native Alert with Cancel / Cook recipe ← pending
+- Cancel does nothing ← pending
+- Confirm calls POST /api/recipes/:id/cook ← pending
+- Success: button changes to "Cooked" and is disabled ← pending
+- Second tap blocked while in-flight ← pending
+- API failure (e.g. insufficient inventory): error text shown, recipe stays visible, button re-enabled ← pending
+- Generate recipe flow still works ← pending
+- Favorites button still works ← pending
+
+Remaining issues:
+
+- No dedicated History screen or History tab — cook history is visible only on the Home dashboard (top 3 items)
+- Missing ingredients card still hidden when empty (no positive confirmation shown)
+- Mobile recipe polling does not resume across screen exits or app restarts
+- Mobile still has no frontend automated test/lint/format pipeline
+- AI image recognition is mock-only
+- Notification flow is missing
+- Inventory edit not wired on mobile
+- Cook recipe device/emulator verification still pending
+
+Next recommended task:
+
+- Add a History screen and wire it from the Profile tab or add a History tab to show the full cooking log.
