@@ -1,4 +1,4 @@
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { FormField } from "../components/FormField";
@@ -401,31 +401,32 @@ export function RecipesScreen() {
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+                <View style={[styles.customServingsBox, customServings !== "" && styles.customServingsBoxActive]}>
+                  <TextInput
+                    value={customServings}
+                    onChangeText={(value) => {
+                      const digitsOnly = value.replace(/[^\d]/g, "");
+                      setCustomServings(digitsOnly);
 
-              <View style={[styles.customServingsBox, customServings !== "" && styles.customServingsBoxActive]}>
-                <FormField
-                  label="Custom servings"
-                  value={customServings}
-                  onChangeText={(value) => {
-                    const digitsOnly = value.replace(/[^\d]/g, "");
-                    setCustomServings(digitsOnly);
+                      if (digitsOnly) {
+                        setServings(Number(digitsOnly));
+                      } else {
+                        setServings(2);
+                      }
 
-                    if (digitsOnly) {
-                      setServings(Number(digitsOnly));
-                    } else {
-                      setServings(2);
-                    }
-
-                    if (promptError) {
-                      setPromptError("");
-                    }
-                  }}
-                  placeholder="Enter a number"
-                  keyboardType="numeric"
-                  returnKeyType="done"
-                  onSubmitEditing={handleGenerateRecipe}
-                />
+                      if (promptError) {
+                        setPromptError("");
+                      }
+                    }}
+                    placeholder="..."
+                    placeholderTextColor="#94a3b8"
+                    keyboardType="numeric"
+                    returnKeyType="done"
+                    onSubmitEditing={handleGenerateRecipe}
+                    style={styles.customServingsInput}
+                    textAlign="center"
+                  />
+                </View>
               </View>
             </View>
 
@@ -664,18 +665,30 @@ const styles = StyleSheet.create({
   },
   servingsRow: {
     flexDirection: "row",
-    gap: 8
+    gap: 8,
+    alignItems: "center"
   },
   customServingsBox: {
-    borderRadius: 18,
-    padding: 4,
+    width: 54,
+    minHeight: 48,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.line,
-    backgroundColor: colors.card
+    backgroundColor: colors.card,
+    alignItems: "center",
+    justifyContent: "center"
   },
   customServingsBoxActive: {
     borderColor: colors.brand,
     backgroundColor: colors.brandSoft
+  },
+  customServingsInput: {
+    width: "100%",
+    minHeight: 48,
+    paddingHorizontal: 6,
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "700"
   },
   servingBox: {
     minWidth: 54,

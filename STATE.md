@@ -1512,3 +1512,38 @@ Next recommended task:
 
 - Add inventory summary and expiring-data UI to the mobile pantry screen.
 - Then wire the mobile favorites and history screens to the real backend endpoints if that is still pending in the current branch.
+
+---
+
+## Session Change Log — recipe servings row UI cleanup
+
+What changed:
+
+- Updated [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js):
+  - Moved the custom servings input into the same horizontal row as the preset `2`, `4`, and `6` serving buttons.
+  - Removed the unnecessary `Custom servings` label text.
+  - Replaced the previous full-width `FormField` layout with a compact inline `TextInput`.
+  - Matched the custom input box size more closely to the preset serving boxes.
+  - Kept the existing servings selection behavior unchanged.
+
+Files changed:
+
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
+
+Commands run:
+
+- `cd /home/erkut/bitirme/mobile && CI=1 npx expo export --platform android --output-dir /tmp/foodsaver-mobile-export-ui`
+
+Test results:
+
+- Mobile Expo Android export completed successfully after the UI change
+
+Remaining issues:
+
+- This task only adjusted layout; no backend or request behavior was changed.
+- Final visual verification on emulator/device is still recommended for spacing polish.
+
+Next recommended task:
+
+- Visually verify the updated servings row on emulator/device.
+- If it feels right, continue with the next real recipe UX improvement or pantry summary UI work.
