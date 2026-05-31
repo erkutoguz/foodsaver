@@ -667,6 +667,8 @@ describe("backend", () => {
     expect(recipeResponse.body.recipe.title).toContain("Mock");
     expect(recipeResponse.body.recipe.ingredients.length).toBeGreaterThan(0);
     expect(recipeResponse.body.recipe.steps.length).toBeGreaterThan(0);
+    expect(typeof recipeResponse.body.recipe.calories).toBe("number");
+    expect(recipeResponse.body.recipe.missingIngredients).toBeInstanceOf(Array);
     expect(recipeResponse.body.recipe.provider).toBe("mock");
     expect(recipeResponse.body.recipe.servings).toBe(2);
   });

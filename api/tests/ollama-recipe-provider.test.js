@@ -4,25 +4,46 @@ import { generateOllamaRecipe } from "../src/adapters/ollama-recipe.provider.js"
 
 function buildRecipeContent(overrides = {}) {
   return {
-    title: "Pantry Rice Bowl",
+    title: "Garlic Chicken Rice Bowl",
     ingredients: [
+      {
+        name: "Chicken",
+        quantity: 250,
+        unit: "gram"
+      },
       {
         name: "Rice",
         quantity: 200,
         unit: "gram"
       },
       {
-        name: "Egg",
-        quantity: 2,
+        name: "Onion",
+        quantity: 1,
         unit: "piece"
       }
     ],
-    steps: ["Cook the rice.", "Top the rice with eggs and serve."],
-    estimatedTimeMinutes: 20,
-    calories: 480,
-    missingIngredients: [],
+    steps: [
+      "Slice the onion and cut the chicken into bite-size pieces so everything cooks evenly.",
+      "Heat a pan over medium heat for 1 minute, then cook the chicken for 5 to 6 minutes until lightly browned.",
+      "Add the onion and cook for 2 to 3 minutes until softened and fragrant.",
+      "Stir in the rice with water and simmer gently for about 15 minutes until the grains are tender."
+    ],
+    estimatedTimeMinutes: 30,
     ...overrides
   };
+}
+
+function buildWeakRecipeContent(overrides = {}) {
+  return buildRecipeContent({
+    title: "Quick Recipe",
+    steps: [
+      "Prepare ingredients and get everything ready for cooking.",
+      "Cook until done in the pan until the dish looks ready.",
+      "Mix everything together carefully until it comes together.",
+      "Serve and enjoy the meal while it is still warm."
+    ],
+    ...overrides
+  });
 }
 
 function buildFetchResponse(body, status = 200) {
@@ -91,12 +112,23 @@ describe("ollama recipe provider", () => {
     });
 
     expect(recipe.provider).toBe("ollama");
-    expect(recipe.title).toBe("Pantry Rice Bowl");
+    expect(recipe.title).toBe("Garlic Chicken Rice Bowl");
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "http://127.0.0.1:11434/api/chat",
       expect.objectContaining({
         method: "POST",
         signal: expect.any(AbortSignal)
+      })
+    );
+
+    const [, requestOptions] = globalThis.fetch.mock.calls[0];
+    const requestBody = JSON.parse(requestOptions.body);
+    expect(requestBody.options).toEqual(
+      expect.objectContaining({
+        temperature: 0,
+        top_p: 0.9,
+        repeat_penalty: 1.05,
+        num_predict: 900
       })
     );
   });
@@ -130,12 +162,12 @@ describe("ollama recipe provider", () => {
     expect(systemMessage.content).toContain("all generated recipe content must be in English");
     expect(systemMessage.content).toContain("Do not translate or rename JSON keys");
     expect(userMessage.content).toContain("Interpret the user prompt even if it is not in English.");
-    expect(userMessage.content).toContain("Always return English values for title, ingredient names, steps, and missingIngredients.");
+    expect(userMessage.content).toContain("Always return English values for title, ingredient names, and steps.");
     expect(userMessage.content).toContain("Do not translate JSON keys; only generate English field values.");
     expect(userMessage.content).toContain("yüksek proteinli akşam yemeği");
   });
 
-  it("includes serving size instructions in the ollama prompt", async () => {
+  it("includes recipe quality rules and serving constraints in the ollama prompt", async () => {
     globalThis.fetch.mockResolvedValue(
       buildFetchResponse({
         message: {
@@ -163,9 +195,85 @@ describe("ollama recipe provider", () => {
     const userMessage = requestBody.messages[1];
 
     expect(userMessage.content).toContain("Requested serving size: 4");
+    expect(userMessage.content).toContain("Recipe must feel like a real home-cookable dish.");
+    expect(userMessage.content).toContain("Recipe must match the user request closely.");
     expect(userMessage.content).toContain("Recipe must be designed for exactly 4 servings.");
-    expect(userMessage.content).toContain("Ingredient quantities must be scaled for exactly 4 servings.");
+    expect(userMessage.content).toContain("Ingredient quantities must be practical and scaled for exactly 4 servings.");
     expect(userMessage.content).toContain("Do not use all pantry quantity unless the serving size actually requires it.");
+    expect(userMessage.content).toContain("Avoid vague steps such as 'cook until done'");
+    expect(userMessage.content).toContain("Compact example of the expected JSON quality:");
+  });
+
+  it("returns a valid detailed recipe without calories or missingIngredients from the model", async () => {
+    globalThis.fetch.mockResolvedValue(
+      buildFetchResponse({
+        message: {
+          content: JSON.stringify(buildRecipeContent())
+        }
+      })
+    );
+
+    const recipe = await generateOllamaRecipe({
+      prompt: "high protein dinner",
+      servings: 2,
+      inventoryItems: []
+    });
+
+    expect(recipe.provider).toBe("ollama");
+    expect(recipe.title).toBe("Garlic Chicken Rice Bowl");
+    expect(recipe.steps).toHaveLength(4);
+    expect(recipe).not.toHaveProperty("calories");
+    expect(recipe).not.toHaveProperty("missingIngredients");
+  });
+
+  it("rejects weak recipes that are valid json but too vague", async () => {
+    globalThis.fetch.mockResolvedValue(
+      buildFetchResponse({
+        message: {
+          content: JSON.stringify(buildWeakRecipeContent())
+        }
+      })
+    );
+
+    await expect(
+      generateOllamaRecipe({
+        prompt: "quick lunch",
+        inventoryItems: []
+      })
+    ).rejects.toThrow("Ollama recipe quality validation failed");
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries once when the first recipe is too weak and accepts the improved retry", async () => {
+    globalThis.fetch
+      .mockResolvedValueOnce(
+        buildFetchResponse({
+          message: {
+            content: JSON.stringify(buildWeakRecipeContent())
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        buildFetchResponse({
+          message: {
+            content: JSON.stringify(buildRecipeContent())
+          }
+        })
+      );
+
+    const recipe = await generateOllamaRecipe({
+      prompt: "quick lunch",
+      inventoryItems: []
+    });
+
+    expect(recipe.provider).toBe("ollama");
+    expect(recipe.steps).toHaveLength(4);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+    const [, retryRequestOptions] = globalThis.fetch.mock.calls[1];
+    const retryBody = JSON.parse(retryRequestOptions.body);
+    expect(retryBody.messages[1].content).toContain("Your previous draft was too weak.");
   });
 
   it("does not leak unexpected extra fields from the model output", async () => {
@@ -364,7 +472,7 @@ describe("ollama recipe provider", () => {
         message: {
           content: JSON.stringify(
             buildRecipeContent({
-              calories: "a lot"
+              estimatedTimeMinutes: "fast"
             })
           )
         }

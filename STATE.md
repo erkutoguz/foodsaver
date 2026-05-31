@@ -1,7 +1,7 @@
 # Food Saver AI Codebase Familiarity Report
 
-Last updated: 2026-04-26
-Scope of this update: Initial codebase inspection, root startup scripts, backend Ollama recipe provider migration, and mobile recipe generation UI wiring.
+Last updated: 2026-05-31
+Scope of this update: Initial codebase inspection, root startup scripts, backend Ollama recipe provider migration, mobile recipe generation UI wiring, explicit cook consumption flow, and the first recipe quality improvement pass.
 
 ## Project Source of Truth Notes
 - This file is now the project progress source of truth.
@@ -1643,3 +1643,79 @@ Next recommended task:
   - invalid amount disables submit
   - cancel leaves inventory untouched
   - successful cook updates pantry and history as expected
+
+## 12. 2026-05-31 Recipe Quality Improvement Pass
+What changed:
+
+- Updated [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js):
+  - Rewrote the Ollama system prompt so it prioritizes recipe quality and culinary coherence, not only JSON validity
+  - Rewrote the user prompt with explicit rules for:
+    - real home-cookable dishes
+    - matching the user request
+    - exact serving-size scaling
+    - practical ingredient quantities
+    - not consuming all pantry stock unless needed
+    - using pantry ingredients when reasonable without forcing awkward pantry-only dishes
+    - realistic seasoning
+    - specific, sequential steps with cooking cues
+    - ingredient-step consistency
+  - Added one compact few-shot JSON example to guide title quality, ingredient quantities, and step detail
+  - Removed `calories` and `missingIngredients` from the model output schema so the LLM is responsible only for recipe content fields
+  - Tightened generated recipe schema:
+    - longer, more specific `title`
+    - minimum `3` ingredients
+    - minimum `4` detailed steps
+    - minimum step length
+  - Added deterministic post-parse quality validation for:
+    - generic titles
+    - duplicate ingredients
+    - repeated identical steps
+    - vague step phrases
+    - missing cooking cues
+  - Added a single retry path when the first response is valid JSON but fails quality validation
+  - Added conservative Ollama generation options:
+    - `temperature: 0`
+    - `top_p: 0.9`
+    - `repeat_penalty: 1.05`
+    - `num_predict: 900`
+- Updated [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js):
+  - Refreshed test fixtures to match the stricter schema
+  - Added assertions that the prompt includes the new recipe-quality rules
+  - Added assertions that servings scaling and “do not use all pantry stock unless needed” remain in the prompt
+  - Added coverage for:
+    - valid detailed output
+    - weak-but-schema-valid output rejection
+    - retry-on-weak-output behavior
+    - Ollama request option values
+- Updated [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js):
+  - Added direct assertions that generated recipes still expose backend-computed `calories` and `missingIngredients` in the API response after removing those fields from the model schema
+
+Files changed:
+
+- [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
+- [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+
+Commands run:
+
+- `cd /home/erkut/bitirme/api && node --check src/adapters/ollama-recipe.provider.js`
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/ollama-recipe-provider.test.js`
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/backend.test.js`
+
+Test results:
+
+- `api/tests/ollama-recipe-provider.test.js`: `20/20` passed
+- `api/tests/backend.test.js`: `52/52` passed
+
+Remaining issues:
+
+- The quality validator is intentionally heuristic and lightweight; it catches obvious weak recipes but does not fully validate culinary coherence.
+- The first pass does not add new recipe content fields like `description`, `difficulty`, `prepTimeMinutes`, or `cookTimeMinutes`.
+- There is still no second-stage recipe refinement pipeline; the provider only retries once with stronger corrective guidance.
+
+Next recommended task:
+
+- Implement the second recipe quality pass:
+  - add a compact backend recipe-quality scorer/validator for ingredient-step consistency
+  - optionally introduce `description` and `difficulty`
+  - consider one stronger few-shot example or a small “regenerate with more detail” backend path
