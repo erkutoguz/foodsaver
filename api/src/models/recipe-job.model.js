@@ -45,6 +45,13 @@ const recipeJobSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    servings: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 20,
+      default: 2
+    },
     status: {
       type: String,
       enum: ["queued", "processing", "completed", "failed"],

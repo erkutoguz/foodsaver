@@ -77,15 +77,22 @@ function buildSystemMessage() {
   ].join(" ");
 }
 
-function buildUserMessage({ prompt, inventoryItems }) {
+function buildUserMessage({ prompt, inventoryItems, servings }) {
   return [
     "User recipe request:",
     prompt,
+    "",
+    `Requested serving size: ${servings}`,
     "",
     "Available inventory:",
     toInventoryList(inventoryItems),
     "",
     "Constraints:",
+    `- Recipe must be designed for exactly ${servings} servings.`,
+    `- Ingredient quantities must be scaled for exactly ${servings} servings.`,
+    "- Every ingredient must include both quantity and unit.",
+    "- Do not use all pantry quantity unless the serving size actually requires it.",
+    "- If the pantry has more stock than needed, use only the required quantity in the recipe.",
     "- Prefer using the available inventory first.",
     "- Use only these units for ingredients: piece, gram, ml.",
     "- Keep the recipe realistic and simple for a student user.",
@@ -112,7 +119,7 @@ function tryParseJson(text) {
   }
 }
 
-export async function generateOllamaRecipe({ prompt, inventoryItems }) {
+export async function generateOllamaRecipe({ prompt, inventoryItems, servings = 2 }) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => {
     controller.abort();
@@ -143,6 +150,7 @@ export async function generateOllamaRecipe({ prompt, inventoryItems }) {
               role: "user",
               content: buildUserMessage({
                 prompt,
+                servings,
                 inventoryItems
               })
             }

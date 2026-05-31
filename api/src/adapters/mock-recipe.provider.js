@@ -22,10 +22,27 @@ function buildTitle(prompt, inventoryItems) {
   return "Mock Pantry Recipe";
 }
 
-function buildIngredients(inventoryItems) {
+function scaleQuantity(quantity, servings, unit) {
+  const baseServings = 2;
+  const scaledQuantity = Math.round((quantity * servings) / baseServings);
+
+  if (unit === "piece") {
+    return Math.max(1, scaledQuantity);
+  }
+
+  return Math.max(1, scaledQuantity);
+}
+
+function buildIngredients(inventoryItems, servings) {
   const selectedItems = inventoryItems.slice(0, 4).map((item) => ({
     name: item.name,
-    quantity: Math.max(1, Math.min(item.quantity, item.unit === "gram" || item.unit === "ml" ? 200 : item.quantity)),
+    quantity: Math.max(
+      1,
+      Math.min(
+        item.quantity,
+        scaleQuantity(item.unit === "gram" || item.unit === "ml" ? 200 : 2, servings, item.unit)
+      )
+    ),
     unit: item.unit
   }));
 
@@ -36,19 +53,19 @@ function buildIngredients(inventoryItems) {
   return [
     {
       name: "pasta",
-      quantity: 200,
+      quantity: scaleQuantity(200, servings, "gram"),
       unit: "gram"
     },
     {
       name: "olive oil",
-      quantity: 1,
+      quantity: scaleQuantity(1, servings, "piece"),
       unit: "piece"
     }
   ];
 }
 
-export async function generateMockRecipe({ prompt, inventoryItems }) {
-  const ingredients = buildIngredients(inventoryItems);
+export async function generateMockRecipe({ prompt, inventoryItems, servings = 2 }) {
+  const ingredients = buildIngredients(inventoryItems, servings);
   const ingredientNames = ingredients.map((item) => item.name);
   const mainIngredient = ingredientNames[0] || "ingredients";
 
@@ -56,9 +73,9 @@ export async function generateMockRecipe({ prompt, inventoryItems }) {
     title: buildTitle(prompt, inventoryItems),
     ingredients,
     steps: [
-      `Prepare the ingredients for "${prompt}".`,
+      `Prepare the ingredients for "${prompt}" and portion them for ${servings} servings.`,
       `Cook ${mainIngredient} gently and combine it with the rest of the available ingredients.`,
-      "Season the dish, serve warm, and enjoy your mock AI recipe."
+      `Season the dish, divide it into ${servings} servings, and enjoy your mock AI recipe.`
     ],
     estimatedTimeMinutes: 15 + ingredients.length * 5,
     calories: 180 + ingredients.length * 120,

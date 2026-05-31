@@ -135,6 +135,39 @@ describe("ollama recipe provider", () => {
     expect(userMessage.content).toContain("yüksek proteinli akşam yemeği");
   });
 
+  it("includes serving size instructions in the ollama prompt", async () => {
+    globalThis.fetch.mockResolvedValue(
+      buildFetchResponse({
+        message: {
+          content: JSON.stringify(buildRecipeContent())
+        }
+      })
+    );
+
+    await generateOllamaRecipe({
+      prompt: "high protein dinner",
+      servings: 4,
+      inventoryItems: [
+        {
+          name: "Chicken",
+          quantity: 500,
+          unit: "gram",
+          category: "protein",
+          expiresAt: null
+        }
+      ]
+    });
+
+    const [, requestOptions] = globalThis.fetch.mock.calls[0];
+    const requestBody = JSON.parse(requestOptions.body);
+    const userMessage = requestBody.messages[1];
+
+    expect(userMessage.content).toContain("Requested serving size: 4");
+    expect(userMessage.content).toContain("Recipe must be designed for exactly 4 servings.");
+    expect(userMessage.content).toContain("Ingredient quantities must be scaled for exactly 4 servings.");
+    expect(userMessage.content).toContain("Do not use all pantry quantity unless the serving size actually requires it.");
+  });
+
   it("does not leak unexpected extra fields from the model output", async () => {
     globalThis.fetch.mockResolvedValue(
       buildFetchResponse({

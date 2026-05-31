@@ -3,7 +3,13 @@ import { z } from "zod";
 const objectIdSchema = z.string().regex(/^[a-f\d]{24}$/i, "A valid id is required.");
 
 export const createRecipeJobSchema = z.object({
-  prompt: z.string().trim().min(1, "Prompt is required.")
+  prompt: z.string().trim().min(1, "Prompt is required."),
+  servings: z.coerce
+    .number()
+    .int("Servings must be a whole number.")
+    .min(1, "Servings must be at least 1.")
+    .max(20, "Servings cannot be greater than 20.")
+    .default(2)
 });
 
 export const recipeParamsSchema = z.object({

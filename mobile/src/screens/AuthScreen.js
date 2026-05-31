@@ -76,7 +76,7 @@ export function AuthScreen({ navigation, route }) {
       scrollable
       eyebrow={mode === "register" ? "WELCOME" : "LOGIN"}
       title={mode === "register" ? "Create your account" : "Sign in to your account"}
-      description="Enter your details to continue. This screen now talks to the real backend auth endpoints."
+     
     >
       <InfoCard title={mode === "register" ? "Create your details" : "Enter your details"}>
         <View style={styles.list}>

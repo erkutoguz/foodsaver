@@ -1413,3 +1413,102 @@ Next recommended task:
 
 - Manually verify full History flow on device: cook a recipe, open History, expand card, verify all sections
 - Manually verify Pantry edit flow on device
+
+---
+
+## Session Change Log — recipe servings selection end-to-end
+
+What changed:
+
+- Updated [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js):
+  - Added serving size UI directly under the recipe prompt.
+  - Added preset selectable boxes for `2`, `4`, and `6`.
+  - Added a manual numeric servings input.
+  - Default servings is `2`.
+  - Manual input overrides preset selection.
+  - Invalid values are blocked in the screen before request send:
+    - empty
+    - non-integer
+    - values below `1`
+    - values above `20`
+  - Added selected-state styling for preset boxes and active custom input.
+  - Recipe result view now shows a servings meta pill.
+- Updated [api/src/validators/recipe.schemas.js](/home/erkut/bitirme/api/src/validators/recipe.schemas.js):
+  - `servings` is now accepted on `POST /api/recipes/generate`.
+  - Validation rules:
+    - coerced to number
+    - integer only
+    - minimum `1`
+    - maximum `20`
+    - default `2`
+- Updated [api/src/models/recipe-job.model.js](/home/erkut/bitirme/api/src/models/recipe-job.model.js):
+  - Added persisted `servings` field to recipe jobs.
+- Updated [api/src/models/recipe.model.js](/home/erkut/bitirme/api/src/models/recipe.model.js):
+  - Added persisted `servings` field to generated recipes.
+- Updated [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js):
+  - `createRecipeJob` now stores `servings`.
+  - `processRecipeJob` passes `servings` into the provider.
+  - Final recipe response now includes `servings`.
+- Updated [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js):
+  - Ollama user prompt now explicitly includes requested serving size.
+  - Added prompt constraints:
+    - recipe must be designed for exactly X servings
+    - ingredient quantities must be scaled for X servings
+    - every ingredient must include quantity and unit
+    - pantry stock must not be fully consumed unless serving size requires it
+- Updated [api/src/adapters/mock-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/mock-recipe.provider.js):
+  - Mock provider now accepts `servings`.
+  - Ingredient quantities scale from a 2-serving baseline while still respecting available pantry quantity caps.
+- Updated [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js):
+  - Added assertion that Ollama prompt includes servings instructions.
+- Updated [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js):
+  - Added recipe generation validation coverage for invalid servings values.
+  - Added default servings coverage when omitted.
+  - Added persisted servings coverage when explicitly selected.
+  - Added cook-flow coverage that proves only recipe ingredient quantity is consumed:
+    - pantry `500g chicken`
+    - recipe uses `300g chicken`
+    - pantry remains `200g chicken` after cook
+  - Added integration coverage that recipe response can carry missing ingredient state for quantity-short pantry cases.
+- Updated [api/tests/missing-ingredients.test.js](/home/erkut/bitirme/api/tests/missing-ingredients.test.js):
+  - Added explicit quantity-aware missing-ingredient case for pantry `200g chicken` vs recipe `300g chicken`.
+
+Files changed:
+
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
+- [api/src/validators/recipe.schemas.js](/home/erkut/bitirme/api/src/validators/recipe.schemas.js)
+- [api/src/models/recipe-job.model.js](/home/erkut/bitirme/api/src/models/recipe-job.model.js)
+- [api/src/models/recipe.model.js](/home/erkut/bitirme/api/src/models/recipe.model.js)
+- [api/src/services/recipe.service.js](/home/erkut/bitirme/api/src/services/recipe.service.js)
+- [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
+- [api/src/adapters/mock-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/mock-recipe.provider.js)
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+- [api/tests/missing-ingredients.test.js](/home/erkut/bitirme/api/tests/missing-ingredients.test.js)
+- [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
+
+Commands run:
+
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/backend.test.js tests/missing-ingredients.test.js tests/ollama-recipe-provider.test.js`
+  - first attempt failed because the sandbox could not let `mongodb-memory-server` open a port
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/backend.test.js tests/missing-ingredients.test.js tests/ollama-recipe-provider.test.js`
+  - rerun outside sandbox permission boundary so `mongodb-memory-server` could bind locally
+- `cd /home/erkut/bitirme/mobile && CI=1 npx expo export --platform android --output-dir /tmp/foodsaver-mobile-export`
+
+Test results:
+
+- `api/tests/backend.test.js`: `48/48` passed
+- `api/tests/missing-ingredients.test.js`: `63/63` passed
+- `api/tests/ollama-recipe-provider.test.js`: `17/17` passed
+- Combined targeted backend run: `128/128` passed
+- Mobile Expo Android export completed successfully
+
+Remaining issues:
+
+- `mobile/src/screens/AuthScreen.js` was already modified before this task and remains outside the scope of the servings change set.
+- Recipe history and favorites responses do not yet expose `servings`; current mobile recipe detail flow is covered because `GET /api/recipes/:id` now includes it.
+- Unit mismatch behavior was preserved through the existing quantity-aware tests in [api/tests/missing-ingredients.test.js](/home/erkut/bitirme/api/tests/missing-ingredients.test.js); no production logic change was needed there.
+
+Next recommended task:
+
+- Add inventory summary and expiring-data UI to the mobile pantry screen.
+- Then wire the mobile favorites and history screens to the real backend endpoints if that is still pending in the current branch.

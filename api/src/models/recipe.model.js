@@ -42,6 +42,13 @@ const recipeSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    servings: {
+      type: Number,
+      required: true,
+      min: 1,
+      max: 20,
+      default: 2
+    },
     title: {
       type: String,
       required: true,

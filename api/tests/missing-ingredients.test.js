@@ -247,6 +247,12 @@ describe("computeMissingIngredients", () => {
     expect(computeMissingIngredients(ingredients, inventory)).toEqual(["chicken"]);
   });
 
+  it("gram quantity insufficient: pantry chicken 200 gram, recipe chicken 300 gram → missing", () => {
+    const ingredients = [{ name: "chicken", quantity: 300, unit: "gram" }];
+    const inventory = [{ name: "chicken", quantity: 200, unit: "gram" }];
+    expect(computeMissingIngredients(ingredients, inventory)).toEqual(["chicken"]);
+  });
+
   it("ml quantity enough: pantry milk 500 ml, recipe milk 200 ml → not missing", () => {
     const ingredients = [{ name: "milk", quantity: 200, unit: "ml" }];
     const inventory = [{ name: "milk", quantity: 500, unit: "ml" }];

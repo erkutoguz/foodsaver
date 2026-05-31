@@ -94,12 +94,13 @@ describe("backend", () => {
     };
   }
 
-  async function createRecipeForUser(session, prompt = "easy lunch") {
+  async function createRecipeForUser(session, prompt = "easy lunch", options = {}) {
     const createJobResponse = await request(app)
       .post("/api/recipes/generate")
       .set("Authorization", session.authHeader)
       .send({
-        prompt
+        prompt,
+        ...(options.servings ? { servings: options.servings } : {})
       });
 
     const completedJobResponse = await waitForRecipeJobCompletion(session.authHeader, createJobResponse.body.jobId);
@@ -646,6 +647,7 @@ describe("backend", () => {
     expect(recipeResponse.body.recipe.ingredients.length).toBeGreaterThan(0);
     expect(recipeResponse.body.recipe.steps.length).toBeGreaterThan(0);
     expect(recipeResponse.body.recipe.provider).toBe("mock");
+    expect(recipeResponse.body.recipe.servings).toBe(2);
   });
 
   it("rejects recipe generation without token", async () => {
@@ -669,6 +671,71 @@ describe("backend", () => {
 
     expect(response.status).toBe(400);
     expect(response.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("returns validation error for invalid servings values", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "servings-validation@example.com"
+    });
+
+    const zeroResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({
+        prompt: "high protein dinner",
+        servings: 0
+      });
+
+    const decimalResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({
+        prompt: "high protein dinner",
+        servings: 2.5
+      });
+
+    const maxResponse = await request(app)
+      .post("/api/recipes/generate")
+      .set("Authorization", session.authHeader)
+      .send({
+        prompt: "high protein dinner",
+        servings: 21
+      });
+
+    expect(zeroResponse.status).toBe(400);
+    expect(zeroResponse.body.code).toBe("VALIDATION_ERROR");
+    expect(decimalResponse.status).toBe(400);
+    expect(decimalResponse.body.code).toBe("VALIDATION_ERROR");
+    expect(maxResponse.status).toBe(400);
+    expect(maxResponse.body.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("defaults recipe servings to 2 when the request omits it", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "servings-default@example.com"
+    });
+
+    const recipe = await createRecipeForUser(session, "default serving lunch");
+    const recipeResponse = await request(app)
+      .get(`/api/recipes/${recipe.recipeId}`)
+      .set("Authorization", session.authHeader);
+
+    expect(recipeResponse.status).toBe(200);
+    expect(recipeResponse.body.recipe.servings).toBe(2);
+  });
+
+  it("stores the selected servings value on the generated recipe", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "servings-selected@example.com"
+    });
+
+    const recipe = await createRecipeForUser(session, "family dinner", { servings: 6 });
+    const recipeResponse = await request(app)
+      .get(`/api/recipes/${recipe.recipeId}`)
+      .set("Authorization", session.authHeader);
+
+    expect(recipeResponse.status).toBe(200);
+    expect(recipeResponse.body.recipe.servings).toBe(6);
   });
 
   it("does not allow one user to access another user's recipe", async () => {
@@ -829,6 +896,70 @@ describe("backend", () => {
     expect(historyInDatabase).toHaveLength(1);
   });
 
+  it("consumes only the recipe ingredient quantity from inventory", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-quantity@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Chicken",
+      quantity: 500,
+      unit: "gram"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "chicken dinner",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: [
+        {
+          name: "Chicken",
+          quantity: 500,
+          unit: "gram"
+        }
+      ]
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "chicken dinner",
+      servings: 2,
+      title: "Chicken Plate",
+      ingredients: [
+        {
+          name: "Chicken",
+          quantity: 300,
+          unit: "gram"
+        }
+      ],
+      steps: ["Cook the chicken.", "Serve warm."],
+      estimatedTimeMinutes: 25,
+      calories: 450,
+      missingIngredients: [],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe._id.toString()}/cook`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+
+    const remainingItem = await InventoryItem.findOne({
+      userId: session.user.id,
+      name: "Chicken"
+    });
+
+    expect(remainingItem).not.toBeNull();
+    expect(remainingItem.quantity).toBe(200);
+  });
+
   it("lists recipe history for the authenticated user", async () => {
     const firstUser = await registerAndGetAuthHeader({
       email: "history-first@example.com"
@@ -891,6 +1022,63 @@ describe("backend", () => {
 
     expect(response.status).toBe(409);
     expect(response.body.code).toBe("INSUFFICIENT_INVENTORY");
+  });
+
+  it("marks quantity-based ingredients as missing when pantry amount is lower than recipe need", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "missing-quantity@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Chicken",
+      quantity: 200,
+      unit: "gram"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "chicken dinner",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: [
+        {
+          name: "Chicken",
+          quantity: 200,
+          unit: "gram"
+        }
+      ]
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "chicken dinner",
+      servings: 2,
+      title: "Chicken Plate",
+      ingredients: [
+        {
+          name: "Chicken",
+          quantity: 300,
+          unit: "gram"
+        }
+      ],
+      steps: ["Cook the chicken.", "Serve warm."],
+      estimatedTimeMinutes: 25,
+      calories: 450,
+      missingIngredients: ["Chicken"],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const response = await request(app)
+      .get(`/api/recipes/${recipe._id.toString()}`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.recipe.missingIngredients).toContain("Chicken");
   });
 
   it("rejects history requests without token", async () => {

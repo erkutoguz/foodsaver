@@ -21,11 +21,14 @@ import { colors } from "../theme/colors";
 
 const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 60000;
+const PRESET_SERVINGS = [2, 4, 6];
 
 export function RecipesScreen() {
   const token = useAuthStore((state) => state.token);
   const [prompt, setPrompt] = useState("");
   const [promptError, setPromptError] = useState("");
+  const [servings, setServings] = useState(2);
+  const [customServings, setCustomServings] = useState("");
   const [jobStatus, setJobStatus] = useState("");
   const [recipe, setRecipe] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
@@ -75,6 +78,8 @@ export function RecipesScreen() {
     setHasCookedRecipe(false);
     setCookError("");
     setPrompt("");
+    setServings(2);
+    setCustomServings("");
   }
 
   async function checkFavoriteStatus(recipeId) {
@@ -252,9 +257,15 @@ export function RecipesScreen() {
 
   async function handleGenerateRecipe() {
     const trimmedPrompt = prompt.trim();
+    const selectedServings = getSelectedServings(customServings, servings);
 
     if (!trimmedPrompt) {
       setPromptError("Please enter a recipe prompt.");
+      return;
+    }
+
+    if (!selectedServings) {
+      setPromptError("Please choose a whole-number serving size between 1 and 20.");
       return;
     }
 
@@ -279,7 +290,8 @@ export function RecipesScreen() {
 
     try {
       const result = await createRecipeJobRequest(token, {
-        prompt: trimmedPrompt
+        prompt: trimmedPrompt,
+        servings: selectedServings
       });
 
       if (!result?.jobId) {
@@ -354,6 +366,68 @@ export function RecipesScreen() {
               returnKeyType="go"
               onSubmitEditing={handleGenerateRecipe}
             />
+
+            <View style={styles.servingsSection}>
+              <Text style={styles.servingsLabel}>Serving size</Text>
+
+              <View style={styles.servingsRow}>
+                {PRESET_SERVINGS.map((value) => {
+                  const isSelected = customServings === "" && servings === value;
+
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      style={[
+                        styles.servingBox,
+                        isSelected && styles.servingBoxActive
+                      ]}
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        setCustomServings("");
+                        setServings(value);
+                        if (promptError) {
+                          setPromptError("");
+                        }
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.servingBoxText,
+                          isSelected && styles.servingBoxTextActive
+                        ]}
+                      >
+                        {value}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={[styles.customServingsBox, customServings !== "" && styles.customServingsBoxActive]}>
+                <FormField
+                  label="Custom servings"
+                  value={customServings}
+                  onChangeText={(value) => {
+                    const digitsOnly = value.replace(/[^\d]/g, "");
+                    setCustomServings(digitsOnly);
+
+                    if (digitsOnly) {
+                      setServings(Number(digitsOnly));
+                    } else {
+                      setServings(2);
+                    }
+
+                    if (promptError) {
+                      setPromptError("");
+                    }
+                  }}
+                  placeholder="Enter a number"
+                  keyboardType="numeric"
+                  returnKeyType="done"
+                  onSubmitEditing={handleGenerateRecipe}
+                />
+              </View>
+            </View>
 
             {promptError ? <Text style={styles.formError}>{promptError}</Text> : null}
 
@@ -433,6 +507,9 @@ export function RecipesScreen() {
                 </View>
                 <View style={styles.metaPill}>
                   <Text style={styles.metaPillText}>{recipe.calories} cal</Text>
+                </View>
+                <View style={styles.metaPill}>
+                  <Text style={styles.metaPillText}>{recipe.servings} servings</Text>
                 </View>
               </View>
 
@@ -545,6 +622,24 @@ function getProgressBadgeLabel(status, isFetchingRecipe) {
   return "Queued";
 }
 
+function getSelectedServings(customServings, fallbackServings) {
+  if (customServings.trim() !== "") {
+    const parsed = Number(customServings);
+
+    if (Number.isInteger(parsed) && parsed > 0 && parsed <= 20) {
+      return parsed;
+    }
+
+    return null;
+  }
+
+  if (Number.isInteger(fallbackServings) && fallbackServings > 0 && fallbackServings <= 20) {
+    return fallbackServings;
+  }
+
+  return null;
+}
+
 const styles = StyleSheet.create({
   section: {
     gap: 14
@@ -558,6 +653,52 @@ const styles = StyleSheet.create({
     color: colors.tomato,
     fontSize: 13,
     fontWeight: "600"
+  },
+  servingsSection: {
+    gap: 10
+  },
+  servingsLabel: {
+    color: colors.ink,
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  servingsRow: {
+    flexDirection: "row",
+    gap: 8
+  },
+  customServingsBox: {
+    borderRadius: 18,
+    padding: 4,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.card
+  },
+  customServingsBoxActive: {
+    borderColor: colors.brand,
+    backgroundColor: colors.brandSoft
+  },
+  servingBox: {
+    minWidth: 54,
+    minHeight: 48,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.line
+  },
+  servingBoxActive: {
+    backgroundColor: colors.brandSoft,
+    borderColor: colors.brand
+  },
+  servingBoxText: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  servingBoxTextActive: {
+    color: colors.brand
   },
   progressBox: {
     alignItems: "center",

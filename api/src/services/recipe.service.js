@@ -18,6 +18,7 @@ function toRecipeResponse(recipe) {
     id: recipe._id.toString(),
     title: recipe.title,
     prompt: recipe.prompt,
+    servings: recipe.servings,
     ingredients: recipe.ingredients,
     steps: recipe.steps,
     estimatedTimeMinutes: recipe.estimatedTimeMinutes,
@@ -59,12 +60,13 @@ function toInventorySnapshot(items) {
   }));
 }
 
-export async function createRecipeJob(userId, { prompt }) {
+export async function createRecipeJob(userId, { prompt, servings = 2 }) {
   const inventoryItems = await findInventoryItemsByUserId(userId);
 
   const job = await createRecipeJobRecord({
     userId,
     prompt,
+    servings,
     status: "queued",
     inventorySnapshot: toInventorySnapshot(inventoryItems)
   });
@@ -114,6 +116,7 @@ export async function processRecipeJob(jobId) {
   try {
     const generatedRecipe = await generateRecipe({
       prompt: queuedJob.prompt,
+      servings: queuedJob.servings,
       inventoryItems: queuedJob.inventorySnapshot
     });
 
@@ -129,6 +132,7 @@ export async function processRecipeJob(jobId) {
       userId: queuedJob.userId,
       jobId: queuedJob._id,
       prompt: queuedJob.prompt,
+      servings: queuedJob.servings,
       missingIngredients,
       calories
     });
