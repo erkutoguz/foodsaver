@@ -1070,6 +1070,92 @@ describe("backend", () => {
     expect(remainingItem.quantity).toBe(250);
   });
 
+  it("allows consuming more than the recipe suggested quantity up to available pantry quantity", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-available-limit@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Tomato",
+      quantity: 18,
+      unit: "piece"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "breakfast",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: [
+        {
+          name: "Tomato",
+          quantity: 18,
+          unit: "piece"
+        }
+      ]
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "breakfast",
+      servings: 2,
+      title: "Tomato Breakfast Plate",
+      ingredients: [
+        {
+          name: "Tomato",
+          quantity: 2,
+          unit: "piece"
+        }
+      ],
+      steps: ["Slice the tomatoes.", "Serve them for breakfast."],
+      estimatedTimeMinutes: 10,
+      calories: 44,
+      missingIngredients: [],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const inventoryItem = await InventoryItem.findOne({
+      userId: session.user.id,
+      name: "Tomato"
+    });
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe._id.toString()}/cook`)
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients: [
+          {
+            ingredientName: "Tomato",
+            pantryItemId: inventoryItem._id.toString(),
+            quantity: 6,
+            unit: "piece"
+          }
+        ]
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body.history.consumedIngredients).toEqual([
+      {
+        name: "Tomato",
+        quantity: 6,
+        unit: "piece"
+      }
+    ]);
+
+    const remainingItem = await InventoryItem.findOne({
+      userId: session.user.id,
+      name: "Tomato"
+    });
+
+    expect(remainingItem).not.toBeNull();
+    expect(remainingItem.quantity).toBe(12);
+  });
+
   it("lists recipe history for the authenticated user", async () => {
     const firstUser = await registerAndGetAuthHeader({
       email: "history-first@example.com"

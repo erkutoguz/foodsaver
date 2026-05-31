@@ -1789,3 +1789,63 @@ Next recommended task:
   - ingredient-step consistency
   - quantity sanity for more ingredient families
   - a targeted corrective retry when servings and ingredient balance still look unrealistic
+
+## 14. 2026-05-31 Manual Cook Amount Uses Pantry Availability as the Limit
+What changed:
+
+- Updated [api/src/services/history.service.js](/home/erkut/bitirme/api/src/services/history.service.js):
+  - Removed the backend rule that blocked consumption above the recipe’s suggested quantity
+  - Cook requests now validate manual consumption only against:
+    - pantry item existence
+    - pantry/user ownership
+    - unit match
+    - ingredient-to-pantry match
+    - pantry available quantity
+  - `recipe.requiredQuantity` remains informational in cook-preview, but is no longer a hard backend maximum
+- Updated [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js):
+  - Removed cook modal validation that blocked user input above `requiredQuantity`
+  - Cook modal input is now limited only by `availableQuantity`
+  - Added a clearer inline label for the numeric field:
+    - `Amount to use`
+  - The modal still shows:
+    - `Required`
+    - `Pantry`
+    - `Available`
+    but only `Available` acts as the hard upper bound
+- Updated [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js):
+  - Added a new integration test:
+    - pantry `18 tomato`
+    - recipe suggests `2 tomato`
+    - user consumes `6 tomato`
+    - request succeeds
+    - pantry remains `12 tomato`
+    - history stores `6 tomato`
+
+Files changed:
+
+- [api/src/services/history.service.js](/home/erkut/bitirme/api/src/services/history.service.js)
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+
+Commands run:
+
+- `cd /home/erkut/bitirme && node --check api/src/services/history.service.js`
+- `cd /home/erkut/bitirme && node --check mobile/src/screens/RecipesScreen.js`
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/backend.test.js`
+
+Test results:
+
+- `api/tests/backend.test.js`: `53/53` passed
+
+Remaining issues:
+
+- The modal still labels the recipe suggestion as `Required`; behavior-wise it is now a suggestion/reference, not a hard rule.
+- The mobile task did not add a dedicated inline helper like “You can use any amount up to what is available in pantry.”
+- Decimal input behavior was intentionally left unchanged in this pass.
+
+Next recommended task:
+
+- Polish the cook modal copy so the suggestion-versus-availability distinction is even clearer:
+  - `Suggested`
+  - `Available`
+  - `Amount to use`

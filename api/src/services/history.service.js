@@ -117,7 +117,6 @@ async function applyInventoryConsumptionFromPayload(userId, recipe, consumedIngr
     recipe.ingredients.map((ingredient) => [buildIngredientKey(ingredient.name, ingredient.unit), ingredient])
   );
   const totalsByPantryItemId = new Map();
-  const totalsByIngredientKey = new Map();
 
   for (const entry of consumedIngredients) {
     const pantryItem = inventoryById.get(entry.pantryItemId);
@@ -153,11 +152,6 @@ async function applyInventoryConsumptionFromPayload(userId, recipe, consumedIngr
       entry.pantryItemId,
       (totalsByPantryItemId.get(entry.pantryItemId) || 0) + entry.quantity
     );
-
-    totalsByIngredientKey.set(
-      ingredientKey,
-      (totalsByIngredientKey.get(ingredientKey) || 0) + entry.quantity
-    );
   }
 
   for (const [pantryItemId, totalQuantity] of totalsByPantryItemId.entries()) {
@@ -168,18 +162,6 @@ async function applyInventoryConsumptionFromPayload(userId, recipe, consumedIngr
         400,
         "CONSUMPTION_EXCEEDS_AVAILABLE",
         "Consumed ingredient quantity cannot be greater than available pantry quantity."
-      );
-    }
-  }
-
-  for (const [ingredientKey, totalQuantity] of totalsByIngredientKey.entries()) {
-    const recipeIngredient = recipeIngredientsByKey.get(ingredientKey);
-
-    if (totalQuantity > recipeIngredient.quantity) {
-      throw createError(
-        400,
-        "CONSUMPTION_EXCEEDS_REQUIRED",
-        "Consumed ingredient quantity cannot be greater than the recipe requirement."
       );
     }
   }

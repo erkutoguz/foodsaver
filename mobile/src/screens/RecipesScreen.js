@@ -709,11 +709,12 @@ export function RecipesScreen() {
                       <Text style={styles.previewMetaText}>
                         Available: {item.availableQuantity} {item.availableUnit || item.requiredUnit}
                       </Text>
+                      <Text style={styles.previewMetaLabel}>Amount to use</Text>
 
                       <TextInput
                         value={item.useQuantity}
                         onChangeText={(value) => handleCookAmountChange(index, value)}
-                        placeholder="0"
+                        placeholder="Amount to use"
                         placeholderTextColor="#94a3b8"
                         keyboardType="numeric"
                         editable={item.canConsume && !isCookingRecipe}
@@ -847,10 +848,6 @@ function getCookItemError(item) {
 
   if (parsedQuantity > item.availableQuantity) {
     return "Amount cannot be greater than available pantry quantity.";
-  }
-
-  if (parsedQuantity > item.requiredQuantity) {
-    return "Amount cannot be greater than the recipe requirement.";
   }
 
   return null;
@@ -1160,6 +1157,12 @@ const styles = StyleSheet.create({
     color: colors.slate,
     fontSize: 13,
     lineHeight: 18
+  },
+  previewMetaLabel: {
+    color: colors.ink,
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 8
   },
   previewInput: {
     minHeight: 48,
