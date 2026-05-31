@@ -1719,3 +1719,73 @@ Next recommended task:
   - add a compact backend recipe-quality scorer/validator for ingredient-step consistency
   - optionally introduce `description` and `difficulty`
   - consider one stronger few-shot example or a small “regenerate with more detail” backend path
+
+## 13. 2026-05-31 Pantry Quantity Misuse Guardrails
+What changed:
+
+- Updated [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js):
+  - Rewrote pantry serialization so inventory is framed as available stock, not recipe ingredient targets
+  - Inventory lines now read like:
+    - `Tomato: available 18 piece`
+    - instead of `name | quantity | unit` recipe-like formatting
+  - Strengthened the user prompt with explicit pantry-quantity rules:
+    - pantry quantities are upper bounds only
+    - never copy pantry stock quantities directly into recipe ingredients
+    - pantry stock tells what is available, not what must be used
+    - use normal culinary quantities for the requested servings even if pantry stock is larger
+  - Added a compact stock-vs-recipe example:
+    - pantry can have `18 tomatoes`
+    - a `2-serving` recipe can still use only `2 tomatoes`
+  - Added deterministic servings-aware quantity sanity validation after LLM parse
+  - Added conservative ingredient caps for common items such as:
+    - tomato
+    - egg
+    - rice
+    - chicken
+    - onion
+    - milk
+    - potato
+    - pasta
+  - Added generic unit caps as fallback for `piece`, `gram`, and `ml`
+  - Added pantry-stock-copy detection:
+    - if generated quantity exactly matches pantry available quantity
+    - and that amount is suspiciously high for the requested servings
+    - the recipe fails quality validation
+  - Extended the existing single retry path so quantity-copying failures also trigger one corrective retry with stronger pantry-stock instructions
+- Updated [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js):
+  - Added assertions for the new pantry-stock wording in the prompt
+  - Added assertions that the old `name | quantity | unit` style is no longer used
+  - Added coverage for:
+    - pantry-quantity guardrail rules in the prompt
+    - rejecting `18 tomatoes for 2 servings`
+    - retrying when the model copies pantry stock quantities
+    - accepting small normal pantry-matching quantities like `2 eggs for 2 servings`
+
+Files changed:
+
+- [api/src/adapters/ollama-recipe.provider.js](/home/erkut/bitirme/api/src/adapters/ollama-recipe.provider.js)
+- [api/tests/ollama-recipe-provider.test.js](/home/erkut/bitirme/api/tests/ollama-recipe-provider.test.js)
+
+Commands run:
+
+- `cd /home/erkut/bitirme/api && node --check src/adapters/ollama-recipe.provider.js`
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/ollama-recipe-provider.test.js`
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/backend.test.js`
+
+Test results:
+
+- `api/tests/ollama-recipe-provider.test.js`: `23/23` passed
+- `api/tests/backend.test.js`: `52/52` passed
+
+Remaining issues:
+
+- Quantity sanity limits are intentionally heuristic; they catch obvious pantry-copying and oversized amounts, but they are not a full culinary rules engine.
+- Matching for pantry-copy detection is still conservative and name-based; broader semantic ingredient equivalence is not implemented in this pass.
+- The cook modal still reflects whatever recipe quantities survive generation; this task fixes the generation source, not the mobile UX shape.
+
+Next recommended task:
+
+- Add a second-layer recipe quantity review pass that combines:
+  - ingredient-step consistency
+  - quantity sanity for more ingredient families
+  - a targeted corrective retry when servings and ingredient balance still look unrealistic

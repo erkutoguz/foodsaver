@@ -46,6 +46,68 @@ function buildWeakRecipeContent(overrides = {}) {
   });
 }
 
+function buildPantryCopyRecipeContent(overrides = {}) {
+  return buildRecipeContent({
+    title: "Tomato Breakfast Plate",
+    ingredients: [
+      {
+        name: "Tomato",
+        quantity: 18,
+        unit: "piece"
+      },
+      {
+        name: "Egg",
+        quantity: 2,
+        unit: "piece"
+      },
+      {
+        name: "Onion",
+        quantity: 1,
+        unit: "piece"
+      }
+    ],
+    steps: [
+      "Slice the tomatoes and onion so they cook evenly in the pan.",
+      "Heat a pan over medium heat for 1 minute, then cook the onion for 2 minutes until softened.",
+      "Add the tomatoes and cook for 4 to 5 minutes until they collapse and become saucy.",
+      "Crack in the eggs and cook over low heat for 3 minutes until the whites are set."
+    ],
+    estimatedTimeMinutes: 18,
+    ...overrides
+  });
+}
+
+function buildEggRecipeContent(overrides = {}) {
+  return buildRecipeContent({
+    title: "Soft Egg Breakfast Scramble",
+    ingredients: [
+      {
+        name: "Egg",
+        quantity: 2,
+        unit: "piece"
+      },
+      {
+        name: "Tomato",
+        quantity: 1,
+        unit: "piece"
+      },
+      {
+        name: "Onion",
+        quantity: 1,
+        unit: "piece"
+      }
+    ],
+    steps: [
+      "Crack the eggs into a bowl, add a pinch of salt, and beat them until smooth.",
+      "Heat a pan over medium-low heat for 1 minute, then cook the onion for 2 minutes until softened.",
+      "Add the tomato and cook for 2 minutes until it softens and releases some juice.",
+      "Pour in the eggs and stir gently for 2 to 3 minutes until softly set."
+    ],
+    estimatedTimeMinutes: 12,
+    ...overrides
+  });
+}
+
 function buildFetchResponse(body, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -167,7 +229,7 @@ describe("ollama recipe provider", () => {
     expect(userMessage.content).toContain("yüksek proteinli akşam yemeği");
   });
 
-  it("includes recipe quality rules and serving constraints in the ollama prompt", async () => {
+  it("uses pantry-stock wording and includes quantity guardrail rules in the ollama prompt", async () => {
     globalThis.fetch.mockResolvedValue(
       buildFetchResponse({
         message: {
@@ -195,12 +257,20 @@ describe("ollama recipe provider", () => {
     const userMessage = requestBody.messages[1];
 
     expect(userMessage.content).toContain("Requested serving size: 4");
+    expect(userMessage.content).toContain("Available pantry stock. These are maximum available amounts, NOT recipe amounts:");
+    expect(userMessage.content).toContain("- Chicken: available 500 gram (category: protein)");
+    expect(userMessage.content).not.toContain("name: Chicken | quantity: 500 | unit: gram");
     expect(userMessage.content).toContain("Recipe must feel like a real home-cookable dish.");
     expect(userMessage.content).toContain("Recipe must match the user request closely.");
     expect(userMessage.content).toContain("Recipe must be designed for exactly 4 servings.");
     expect(userMessage.content).toContain("Ingredient quantities must be practical and scaled for exactly 4 servings.");
-    expect(userMessage.content).toContain("Do not use all pantry quantity unless the serving size actually requires it.");
+    expect(userMessage.content).toContain("Available pantry quantities are upper bounds only, not target recipe amounts.");
+    expect(userMessage.content).toContain("Never copy pantry stock quantities directly into recipe ingredients.");
+    expect(userMessage.content).toContain("Pantry stock tells what is available, not what must be used.");
+    expect(userMessage.content).toContain("Do not use all pantry quantity unless that amount is genuinely normal for the dish and serving count.");
+    expect(userMessage.content).toContain("If pantry has 18 tomatoes and the recipe needs tomatoes for 2 servings, use a normal amount such as 1 to 3 tomatoes, not 18.");
     expect(userMessage.content).toContain("Avoid vague steps such as 'cook until done'");
+    expect(userMessage.content).toContain("Example pantry stock for a 2-serving breakfast:");
     expect(userMessage.content).toContain("Compact example of the expected JSON quality:");
   });
 
@@ -274,6 +344,127 @@ describe("ollama recipe provider", () => {
     const [, retryRequestOptions] = globalThis.fetch.mock.calls[1];
     const retryBody = JSON.parse(retryRequestOptions.body);
     expect(retryBody.messages[1].content).toContain("Your previous draft was too weak.");
+  });
+
+  it("rejects recipes with pantry-sized ingredient quantities for low serving counts", async () => {
+    globalThis.fetch.mockResolvedValue(
+      buildFetchResponse({
+        message: {
+          content: JSON.stringify(buildPantryCopyRecipeContent())
+        }
+      })
+    );
+
+    await expect(
+      generateOllamaRecipe({
+        prompt: "2-serving breakfast",
+        servings: 2,
+        inventoryItems: [
+          {
+            name: "Tomato",
+            quantity: 18,
+            unit: "piece"
+          }
+        ]
+      })
+    ).rejects.toThrow("Pantry amounts are maximum available stock, not recipe targets.");
+
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries once when the first recipe copies pantry stock quantities and accepts the corrected recipe", async () => {
+    globalThis.fetch
+      .mockResolvedValueOnce(
+        buildFetchResponse({
+          message: {
+            content: JSON.stringify(buildPantryCopyRecipeContent())
+          }
+        })
+      )
+      .mockResolvedValueOnce(
+        buildFetchResponse({
+          message: {
+            content: JSON.stringify(
+              buildPantryCopyRecipeContent({
+                ingredients: [
+                  {
+                    name: "Tomato",
+                    quantity: 2,
+                    unit: "piece"
+                  },
+                  {
+                    name: "Egg",
+                    quantity: 2,
+                    unit: "piece"
+                  },
+                  {
+                    name: "Onion",
+                    quantity: 1,
+                    unit: "piece"
+                  }
+                ]
+              })
+            )
+          }
+        })
+      );
+
+    const recipe = await generateOllamaRecipe({
+      prompt: "2-serving breakfast",
+      servings: 2,
+      inventoryItems: [
+        {
+          name: "Tomato",
+          quantity: 18,
+          unit: "piece"
+        },
+        {
+          name: "Egg",
+          quantity: 6,
+          unit: "piece"
+        }
+      ]
+    });
+
+    expect(recipe.ingredients[0].quantity).toBe(2);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
+
+    const [, retryRequestOptions] = globalThis.fetch.mock.calls[1];
+    const retryBody = JSON.parse(retryRequestOptions.body);
+    expect(retryBody.messages[1].content).toContain("Previous output copied or overused pantry stock quantities.");
+    expect(retryBody.messages[1].content).toContain("Pantry amounts are maximum available stock, not target recipe amounts.");
+  });
+
+  it("does not reject normal pantry-matching quantities when they are reasonable for the serving count", async () => {
+    globalThis.fetch.mockResolvedValue(
+      buildFetchResponse({
+        message: {
+          content: JSON.stringify(buildEggRecipeContent())
+        }
+      })
+    );
+
+    const recipe = await generateOllamaRecipe({
+      prompt: "2-serving breakfast",
+      servings: 2,
+      inventoryItems: [
+        {
+          name: "Egg",
+          quantity: 2,
+          unit: "piece"
+        }
+      ]
+    });
+
+    expect(recipe.provider).toBe("ollama");
+    expect(recipe.ingredients[0]).toEqual(
+      expect.objectContaining({
+        name: "Egg",
+        quantity: 2,
+        unit: "piece"
+      })
+    );
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not leak unexpected extra fields from the model output", async () => {
