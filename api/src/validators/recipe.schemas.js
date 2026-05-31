@@ -15,3 +15,18 @@ export const createRecipeJobSchema = z.object({
 export const recipeParamsSchema = z.object({
   id: objectIdSchema
 });
+
+export const cookPreviewParamsSchema = recipeParamsSchema;
+
+export const cookRecipeBodySchema = z.object({
+  consumedIngredients: z
+    .array(
+      z.object({
+        ingredientName: z.string().trim().min(1, "Ingredient name is required."),
+        pantryItemId: objectIdSchema,
+        quantity: z.coerce.number().positive("Quantity must be greater than zero."),
+        unit: z.string().trim().min(1, "Unit is required.")
+      })
+    )
+    .min(1, "At least one consumed ingredient is required.")
+});

@@ -25,8 +25,16 @@ export function getRecipeDetailRequest(token, recipeId) {
   });
 }
 
-export function cookRecipeRequest(token, recipeId) {
-  return postRequest(API_PATHS.recipes.cook(recipeId), {}, {
+export function getCookPreviewRequest(token, recipeId) {
+  return getRequest(API_PATHS.recipes.cookPreview(recipeId), {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export function cookRecipeRequest(token, recipeId, payload) {
+  return postRequest(API_PATHS.recipes.cook(recipeId), payload, {
     headers: {
       Authorization: `Bearer ${token}`
     }

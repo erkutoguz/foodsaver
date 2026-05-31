@@ -23,6 +23,7 @@ export const API_PATHS = {
     generate: "/api/recipes/generate",
     job: (jobId) => `/api/recipes/jobs/${jobId}`,
     detail: (recipeId) => `/api/recipes/${recipeId}`,
+    cookPreview: (recipeId) => `/api/recipes/${recipeId}/cook-preview`,
     cook: (recipeId) => `/api/recipes/${recipeId}/cook`
   },
   favorites: {

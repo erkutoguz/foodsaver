@@ -1547,3 +1547,99 @@ Next recommended task:
 
 - Visually verify the updated servings row on emulator/device.
 - If it feels right, continue with the next real recipe UX improvement or pantry summary UI work.
+
+---
+
+## Session Change Log — custom cook modal with user-confirmed pantry consumption
+
+What changed:
+
+- Updated [api/src/routes/recipe.routes.js](/home/erkut/bitirme/api/src/routes/recipe.routes.js):
+  - Added `GET /api/recipes/:id/cook-preview`
+  - Updated `POST /api/recipes/:id/cook` to validate and accept a request body
+- Updated [api/src/validators/recipe.schemas.js](/home/erkut/bitirme/api/src/validators/recipe.schemas.js):
+  - Added `cookRecipeBodySchema`
+  - `consumedIngredients` is now explicitly required for cook requests
+  - Each consumed ingredient must include:
+    - `ingredientName`
+    - `pantryItemId`
+    - positive `quantity`
+    - `unit`
+- Updated [api/src/services/history.service.js](/home/erkut/bitirme/api/src/services/history.service.js):
+  - Removed the old automatic “consume full recipe.ingredients” behavior from the cook flow
+  - Added backend cook-preview generation using recipe ingredients + current pantry inventory
+  - Added validation for cook payload:
+    - pantry item exists
+    - pantry item belongs to current user scope
+    - unit matches pantry item unit
+    - ingredient belongs to the recipe
+    - quantity does not exceed available pantry quantity
+    - quantity does not exceed recipe-required quantity
+  - History now stores the actual user-confirmed consumed amounts from the request payload
+  - Matching for preview/cook validation now uses the same normalized-name + satisfier-map direction as existing pantry ingredient coverage logic
+- Updated [mobile/src/config/api.js](/home/erkut/bitirme/mobile/src/config/api.js):
+  - Added mobile API path for `cook-preview`
+- Updated [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js):
+  - Added `getCookPreviewRequest`
+  - Updated `cookRecipeRequest` to send a payload
+- Updated [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js):
+  - Replaced the old `Alert`-based cook confirmation with a custom modal
+  - Modal now:
+    - loads live cook-preview data from backend
+    - shows required quantity/unit
+    - shows matched pantry item and available quantity
+    - shows editable numeric input for use amount
+    - disables editing when preview says item cannot be consumed
+    - blocks invalid inputs
+    - disables submit when no valid positive amount is selected
+    - prevents duplicate submit while cooking
+  - Cook submit now sends only user-confirmed `consumedIngredients`
+- Updated [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js):
+  - Reworked cook tests to use explicit `consumedIngredients`
+  - Added cook-preview test
+  - Added quantity-preserving consumption test:
+    - pantry `500g chicken`
+    - cook payload `250g chicken`
+    - pantry remains `250g chicken`
+    - history records `250g chicken`
+  - Added validation coverage for:
+    - quantity over available
+    - unit mismatch
+    - missing pantry item id
+    - empty `consumedIngredients`
+  - Updated history list test to use the new cook contract
+
+Files changed:
+
+- [api/src/routes/recipe.routes.js](/home/erkut/bitirme/api/src/routes/recipe.routes.js)
+- [api/src/services/history.service.js](/home/erkut/bitirme/api/src/services/history.service.js)
+- [api/src/validators/recipe.schemas.js](/home/erkut/bitirme/api/src/validators/recipe.schemas.js)
+- [api/tests/backend.test.js](/home/erkut/bitirme/api/tests/backend.test.js)
+- [mobile/src/config/api.js](/home/erkut/bitirme/mobile/src/config/api.js)
+- [mobile/src/services/recipe-service.js](/home/erkut/bitirme/mobile/src/services/recipe-service.js)
+- [mobile/src/screens/RecipesScreen.js](/home/erkut/bitirme/mobile/src/screens/RecipesScreen.js)
+
+Commands run:
+
+- `cd /home/erkut/bitirme/api && npm test -- --run tests/backend.test.js`
+- `cd /home/erkut/bitirme/mobile && CI=1 npx expo export --platform android --output-dir /tmp/foodsaver-mobile-cook-flow`
+
+Test results:
+
+- `api/tests/backend.test.js`: `52/52` passed
+- Mobile Expo Android export completed successfully
+
+Remaining issues:
+
+- The cook modal currently supports one matched pantry item per recipe ingredient preview row; it does not yet let the user switch between multiple same-name pantry entries if several exist.
+- This feature intentionally made `consumedIngredients` explicit and required; old cook requests without a body no longer work.
+- Final device-level manual QA is still needed for modal spacing, keyboard behavior, and partial-cook UX.
+
+Next recommended task:
+
+- Manually verify the new cook modal on emulator/device:
+  - open modal
+  - edit amounts
+  - invalid amount disables submit
+  - cancel leaves inventory untouched
+  - successful cook updates pantry and history as expected

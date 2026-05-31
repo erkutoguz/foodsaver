@@ -111,6 +111,27 @@ describe("backend", () => {
     };
   }
 
+  async function getCookPreviewForRecipe(session, recipeId) {
+    const response = await request(app)
+      .get(`/api/recipes/${recipeId}/cook-preview`)
+      .set("Authorization", session.authHeader);
+
+    return response;
+  }
+
+  async function buildConsumedIngredientsFromPreview(session, recipeId) {
+    const previewResponse = await getCookPreviewForRecipe(session, recipeId);
+
+    return (previewResponse.body.items || [])
+      .filter((item) => item.canConsume && item.defaultUseQuantity > 0)
+      .map((item) => ({
+        ingredientName: item.ingredientName,
+        pantryItemId: item.pantryItemId,
+        quantity: item.defaultUseQuantity,
+        unit: item.requiredUnit
+      }));
+  }
+
   it("returns health status", async () => {
     const response = await request(app).get("/health");
 
@@ -877,10 +898,14 @@ describe("backend", () => {
     });
 
     const recipe = await createRecipeForUser(session, "protein bowl");
+    const consumedIngredients = await buildConsumedIngredientsFromPreview(session, recipe.recipeId);
 
     const response = await request(app)
       .post(`/api/recipes/${recipe.recipeId}/cook`)
-      .set("Authorization", session.authHeader);
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients
+      });
 
     expect(response.status).toBe(200);
     expect(response.body.status).toBe("cooked");
@@ -894,6 +919,67 @@ describe("backend", () => {
 
     const historyInDatabase = await RecipeHistory.find({ userId: session.user.id });
     expect(historyInDatabase).toHaveLength(1);
+  });
+
+  it("returns cook preview data with default pantry usage", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-preview@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Chicken",
+      quantity: 500,
+      unit: "gram"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "chicken dinner",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: [
+        {
+          name: "Chicken",
+          quantity: 500,
+          unit: "gram"
+        }
+      ]
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "chicken dinner",
+      servings: 2,
+      title: "Chicken Plate",
+      ingredients: [
+        {
+          name: "Chicken",
+          quantity: 300,
+          unit: "gram"
+        }
+      ],
+      steps: ["Cook the chicken.", "Serve warm."],
+      estimatedTimeMinutes: 25,
+      calories: 450,
+      missingIngredients: [],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const response = await request(app)
+      .get(`/api/recipes/${recipe._id.toString()}/cook-preview`)
+      .set("Authorization", session.authHeader);
+
+    expect(response.status).toBe(200);
+    expect(response.body.items).toHaveLength(1);
+    expect(response.body.items[0].ingredientName).toBe("Chicken");
+    expect(response.body.items[0].availableQuantity).toBe(500);
+    expect(response.body.items[0].defaultUseQuantity).toBe(300);
+    expect(response.body.items[0].canConsume).toBe(true);
   });
 
   it("consumes only the recipe ingredient quantity from inventory", async () => {
@@ -945,11 +1031,33 @@ describe("backend", () => {
       recipeId: recipe._id
     });
 
+    const inventoryItem = await InventoryItem.findOne({
+      userId: session.user.id,
+      name: "Chicken"
+    });
+
     const response = await request(app)
       .post(`/api/recipes/${recipe._id.toString()}/cook`)
-      .set("Authorization", session.authHeader);
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients: [
+          {
+            ingredientName: "Chicken",
+            pantryItemId: inventoryItem._id.toString(),
+            quantity: 250,
+            unit: "gram"
+          }
+        ]
+      });
 
     expect(response.status).toBe(200);
+    expect(response.body.history.consumedIngredients).toEqual([
+      {
+        name: "Chicken",
+        quantity: 250,
+        unit: "gram"
+      }
+    ]);
 
     const remainingItem = await InventoryItem.findOne({
       userId: session.user.id,
@@ -957,7 +1065,7 @@ describe("backend", () => {
     });
 
     expect(remainingItem).not.toBeNull();
-    expect(remainingItem.quantity).toBe(200);
+    expect(remainingItem.quantity).toBe(250);
   });
 
   it("lists recipe history for the authenticated user", async () => {
@@ -983,8 +1091,21 @@ describe("backend", () => {
     const firstRecipe = await createRecipeForUser(firstUser, "history breakfast");
     const secondRecipe = await createRecipeForUser(secondUser, "history drink");
 
-    await request(app).post(`/api/recipes/${firstRecipe.recipeId}/cook`).set("Authorization", firstUser.authHeader);
-    await request(app).post(`/api/recipes/${secondRecipe.recipeId}/cook`).set("Authorization", secondUser.authHeader);
+    const firstConsumedIngredients = await buildConsumedIngredientsFromPreview(firstUser, firstRecipe.recipeId);
+    const secondConsumedIngredients = await buildConsumedIngredientsFromPreview(secondUser, secondRecipe.recipeId);
+
+    await request(app)
+      .post(`/api/recipes/${firstRecipe.recipeId}/cook`)
+      .set("Authorization", firstUser.authHeader)
+      .send({
+        consumedIngredients: firstConsumedIngredients
+      });
+    await request(app)
+      .post(`/api/recipes/${secondRecipe.recipeId}/cook`)
+      .set("Authorization", secondUser.authHeader)
+      .send({
+        consumedIngredients: secondConsumedIngredients
+      });
 
     const response = await request(app).get("/api/history").set("Authorization", firstUser.authHeader);
 
@@ -1000,28 +1121,220 @@ describe("backend", () => {
     expect(response.body.history[0].missingIngredients).toBeInstanceOf(Array);
   });
 
-  it("rejects cooking when inventory is not sufficient anymore", async () => {
-    const session = await registerAndGetAuthHeader();
-
-    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
-      name: "Egg",
-      quantity: 2,
-      unit: "piece"
+  it("rejects cooking when consumed quantity is greater than available pantry quantity", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-over-available@example.com"
     });
 
-    const recipe = await createRecipeForUser(session, "egg breakfast");
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Chicken",
+      quantity: 200,
+      unit: "gram"
+    });
 
-    const currentInventory = await request(app).get("/api/inventory").set("Authorization", session.authHeader);
-    await request(app)
-      .delete(`/api/inventory/${currentInventory.body.items[0].id}`)
-      .set("Authorization", session.authHeader);
+    const inventoryItem = await InventoryItem.findOne({
+      userId: session.user.id,
+      name: "Chicken"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "chicken dinner",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: [
+        {
+          name: "Chicken",
+          quantity: 200,
+          unit: "gram"
+        }
+      ]
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "chicken dinner",
+      servings: 2,
+      title: "Chicken Plate",
+      ingredients: [
+        {
+          name: "Chicken",
+          quantity: 300,
+          unit: "gram"
+        }
+      ],
+      steps: ["Cook the chicken.", "Serve warm."],
+      estimatedTimeMinutes: 25,
+      calories: 450,
+      missingIngredients: ["Chicken"],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe._id.toString()}/cook`)
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients: [
+          {
+            ingredientName: "Chicken",
+            pantryItemId: inventoryItem._id.toString(),
+            quantity: 250,
+            unit: "gram"
+          }
+        ]
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("CONSUMPTION_EXCEEDS_AVAILABLE");
+  });
+
+  it("rejects cooking when consumed ingredient unit does not match pantry unit", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-unit-mismatch@example.com"
+    });
+
+    await request(app).post("/api/inventory").set("Authorization", session.authHeader).send({
+      name: "Milk",
+      quantity: 500,
+      unit: "ml"
+    });
+
+    const inventoryItem = await InventoryItem.findOne({
+      userId: session.user.id,
+      name: "Milk"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "milk soup",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: [
+        {
+          name: "Milk",
+          quantity: 500,
+          unit: "ml"
+        }
+      ]
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "milk soup",
+      servings: 2,
+      title: "Milk Soup",
+      ingredients: [
+        {
+          name: "Milk",
+          quantity: 200,
+          unit: "ml"
+        }
+      ],
+      steps: ["Warm the milk.", "Serve warm."],
+      estimatedTimeMinutes: 15,
+      calories: 200,
+      missingIngredients: [],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe._id.toString()}/cook`)
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients: [
+          {
+            ingredientName: "Milk",
+            pantryItemId: inventoryItem._id.toString(),
+            quantity: 100,
+            unit: "gram"
+          }
+        ]
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("UNIT_MISMATCH");
+  });
+
+  it("rejects cooking when pantry item id does not exist", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-missing-pantry-item@example.com"
+    });
+
+    const recipeJob = await RecipeJob.create({
+      userId: session.user.id,
+      prompt: "egg breakfast",
+      servings: 2,
+      status: "completed",
+      inventorySnapshot: []
+    });
+
+    const recipe = await Recipe.create({
+      userId: session.user.id,
+      jobId: recipeJob._id,
+      prompt: "egg breakfast",
+      servings: 2,
+      title: "Egg Breakfast",
+      ingredients: [
+        {
+          name: "Egg",
+          quantity: 2,
+          unit: "piece"
+        }
+      ],
+      steps: ["Cook the eggs.", "Serve warm."],
+      estimatedTimeMinutes: 10,
+      calories: 180,
+      missingIngredients: ["Egg"],
+      provider: "mock"
+    });
+
+    await RecipeJob.findByIdAndUpdate(recipeJob._id, {
+      recipeId: recipe._id
+    });
+
+    const response = await request(app)
+      .post(`/api/recipes/${recipe._id.toString()}/cook`)
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients: [
+          {
+            ingredientName: "Egg",
+            pantryItemId: "507f1f77bcf86cd799439011",
+            quantity: 1,
+            unit: "piece"
+          }
+        ]
+      });
+
+    expect(response.status).toBe(404);
+    expect(response.body.code).toBe("PANTRY_ITEM_NOT_FOUND");
+  });
+
+  it("rejects cooking when consumedIngredients is empty", async () => {
+    const session = await registerAndGetAuthHeader({
+      email: "cook-empty-payload@example.com"
+    });
+    const recipe = await createRecipeForUser(session, "simple pasta");
 
     const response = await request(app)
       .post(`/api/recipes/${recipe.recipeId}/cook`)
-      .set("Authorization", session.authHeader);
+      .set("Authorization", session.authHeader)
+      .send({
+        consumedIngredients: []
+      });
 
-    expect(response.status).toBe(409);
-    expect(response.body.code).toBe("INSUFFICIENT_INVENTORY");
+    expect(response.status).toBe(400);
+    expect(response.body.code).toBe("VALIDATION_ERROR");
   });
 
   it("marks quantity-based ingredients as missing when pantry amount is lower than recipe need", async () => {

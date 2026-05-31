@@ -1,4 +1,13 @@
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View
+} from "react-native";
 import { useEffect, useRef, useState } from "react";
 import { Ionicons } from "@expo/vector-icons";
 import { FormField } from "../components/FormField";
@@ -8,6 +17,7 @@ import { ScreenShell } from "../components/ScreenShell";
 import {
   cookRecipeRequest,
   createRecipeJobRequest,
+  getCookPreviewRequest,
   getRecipeDetailRequest,
   getRecipeJobRequest
 } from "../services/recipe-service";
@@ -41,6 +51,10 @@ export function RecipesScreen() {
   const [isCookingRecipe, setIsCookingRecipe] = useState(false);
   const [hasCookedRecipe, setHasCookedRecipe] = useState(false);
   const [cookError, setCookError] = useState("");
+  const [isCookModalVisible, setIsCookModalVisible] = useState(false);
+  const [isLoadingCookPreview, setIsLoadingCookPreview] = useState(false);
+  const [cookPreviewItems, setCookPreviewItems] = useState([]);
+  const [cookModalError, setCookModalError] = useState("");
   const pollIntervalRef = useRef(null);
   const pollTimeoutRef = useRef(null);
   const activeJobIdRef = useRef(null);
@@ -77,6 +91,10 @@ export function RecipesScreen() {
     setIsCookingRecipe(false);
     setHasCookedRecipe(false);
     setCookError("");
+    setIsCookModalVisible(false);
+    setIsLoadingCookPreview(false);
+    setCookPreviewItems([]);
+    setCookModalError("");
     setPrompt("");
     setServings(2);
     setCustomServings("");
@@ -114,34 +132,90 @@ export function RecipesScreen() {
     }
   }
 
-  function handleCookRecipe() {
-    if (!recipe || isCookingRecipe || hasCookedRecipe) {
+  function closeCookModal(forceClose = false) {
+    if (isCookingRecipe && !forceClose) {
       return;
     }
 
-    Alert.alert(
-      "Cook this recipe?",
-      "Matching ingredients will be removed from your pantry and this recipe will be added to your cooking history.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Cook recipe",
-          onPress: async () => {
-            setIsCookingRecipe(true);
-            setCookError("");
+    setIsCookModalVisible(false);
+    setIsLoadingCookPreview(false);
+    setCookPreviewItems([]);
+    setCookModalError("");
+  }
 
-            try {
-              await cookRecipeRequest(token, recipe.id);
-              setHasCookedRecipe(true);
-            } catch (error) {
-              setCookError(error.message || "Could not cook recipe. Please try again.");
-            } finally {
-              setIsCookingRecipe(false);
+  async function handleOpenCookModal() {
+    if (!recipe || !token || isCookingRecipe || hasCookedRecipe) {
+      return;
+    }
+
+    setIsCookModalVisible(true);
+    setIsLoadingCookPreview(true);
+    setCookModalError("");
+    setCookError("");
+
+    try {
+      const result = await getCookPreviewRequest(token, recipe.id);
+      const items = Array.isArray(result?.items)
+        ? result.items.map((item) => ({
+            ...item,
+            useQuantity: String(item.defaultUseQuantity ?? 0)
+          }))
+        : [];
+
+      setCookPreviewItems(items);
+    } catch (error) {
+      setCookPreviewItems([]);
+      setCookModalError(error.message || "Could not load pantry usage details.");
+    } finally {
+      setIsLoadingCookPreview(false);
+    }
+  }
+
+  function handleCookAmountChange(index, value) {
+    const cleanedValue = sanitizeCookQuantityInput(value);
+
+    setCookPreviewItems((currentItems) =>
+      currentItems.map((item, itemIndex) =>
+        itemIndex === index
+          ? {
+              ...item,
+              useQuantity: cleanedValue
             }
-          }
-        }
-      ]
+          : item
+      )
     );
+    setCookModalError("");
+  }
+
+  async function handleCookRecipe() {
+    if (!recipe || !token || isCookingRecipe) {
+      return;
+    }
+
+    const consumedIngredients = buildCookPayload(cookPreviewItems);
+
+    if (consumedIngredients.length === 0) {
+      setCookModalError("Choose at least one valid pantry amount to continue.");
+      return;
+    }
+
+    setIsCookingRecipe(true);
+    setCookError("");
+    setCookModalError("");
+
+    try {
+      await cookRecipeRequest(token, recipe.id, {
+        consumedIngredients
+      });
+      setHasCookedRecipe(true);
+      closeCookModal(true);
+    } catch (error) {
+      const message = error.message || "Could not cook recipe. Please try again.";
+      setCookError(message);
+      setCookModalError(message);
+    } finally {
+      setIsCookingRecipe(false);
+    }
   }
 
   async function loadRecipeDetail(recipeId, expectedJobId) {
@@ -337,6 +411,14 @@ export function RecipesScreen() {
       : "Your request is queued and waiting to be processed.";
   const progressStage = getProgressStage(jobStatus, isFetchingRecipe);
   const progressBadgeLabel = getProgressBadgeLabel(jobStatus, isFetchingRecipe);
+  const hasCookValidationError = cookPreviewItems.some(
+    (item) => item.canConsume && getCookItemError(item) !== null
+  );
+  const canSubmitCook =
+    !isLoadingCookPreview &&
+    !isCookingRecipe &&
+    buildCookPayload(cookPreviewItems).length > 0 &&
+    !hasCookValidationError;
 
   return (
     <ScreenShell
@@ -574,7 +656,7 @@ export function RecipesScreen() {
           <View style={styles.buttonStack}>
             <PrimaryButton
               label={hasCookedRecipe ? "Cooked" : isCookingRecipe ? "Cooking..." : "Cook recipe"}
-              onPress={handleCookRecipe}
+              onPress={handleOpenCookModal}
               loading={isCookingRecipe}
               disabled={isCookingRecipe || hasCookedRecipe}
             />
@@ -587,6 +669,88 @@ export function RecipesScreen() {
           </View>
         </>
       ) : null}
+
+      <Modal
+        visible={isCookModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={closeCookModal}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Cook this recipe?</Text>
+            <Text style={styles.modalDescription}>
+              Choose how much of each pantry item you want to use.
+            </Text>
+
+            {isLoadingCookPreview ? (
+              <View style={styles.modalLoadingBox}>
+                <ActivityIndicator size="small" color={colors.brand} />
+                <Text style={styles.modalLoadingText}>Loading pantry matches...</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.modalScroll}
+                contentContainerStyle={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {cookPreviewItems.map((item, index) => {
+                  const itemError = getCookItemError(item);
+
+                  return (
+                    <View key={`${item.ingredientName}-${index}`} style={styles.previewCard}>
+                      <Text style={styles.previewIngredientName}>{item.ingredientName}</Text>
+                      <Text style={styles.previewMetaText}>
+                        Required: {item.requiredQuantity} {item.requiredUnit}
+                      </Text>
+                      <Text style={styles.previewMetaText}>
+                        Pantry: {item.pantryItemName || "No matching item"}
+                      </Text>
+                      <Text style={styles.previewMetaText}>
+                        Available: {item.availableQuantity} {item.availableUnit || item.requiredUnit}
+                      </Text>
+
+                      <TextInput
+                        value={item.useQuantity}
+                        onChangeText={(value) => handleCookAmountChange(index, value)}
+                        placeholder="0"
+                        placeholderTextColor="#94a3b8"
+                        keyboardType="numeric"
+                        editable={item.canConsume && !isCookingRecipe}
+                        style={[
+                          styles.previewInput,
+                          !item.canConsume && styles.previewInputDisabled,
+                          itemError && styles.previewInputError
+                        ]}
+                      />
+
+                      {item.reason ? <Text style={styles.previewReason}>{item.reason}</Text> : null}
+                      {itemError ? <Text style={styles.previewError}>{itemError}</Text> : null}
+                    </View>
+                  );
+                })}
+
+                {cookModalError ? <Text style={styles.modalError}>{cookModalError}</Text> : null}
+              </ScrollView>
+            )}
+
+            <View style={styles.modalActionRow}>
+              <PrimaryButton
+                label="Cancel"
+                variant="secondary"
+                onPress={closeCookModal}
+                disabled={isCookingRecipe}
+              />
+              <PrimaryButton
+                label={isCookingRecipe ? "Cooking..." : "Cook recipe"}
+                onPress={handleCookRecipe}
+                loading={isCookingRecipe}
+                disabled={!canSubmitCook}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScreenShell>
   );
 }
@@ -639,6 +803,74 @@ function getSelectedServings(customServings, fallbackServings) {
   }
 
   return null;
+}
+
+function sanitizeCookQuantityInput(value) {
+  const cleanedValue = String(value || "").replace(/[^0-9.]/g, "");
+  const parts = cleanedValue.split(".");
+
+  if (parts.length <= 1) {
+    return cleanedValue;
+  }
+
+  return `${parts[0]}.${parts.slice(1).join("")}`;
+}
+
+function parseCookQuantity(value) {
+  if (String(value || "").trim() === "") {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+
+  if (!Number.isFinite(parsedValue)) {
+    return null;
+  }
+
+  return parsedValue;
+}
+
+function getCookItemError(item) {
+  if (!item.canConsume) {
+    return null;
+  }
+
+  const parsedQuantity = parseCookQuantity(item.useQuantity);
+
+  if (parsedQuantity === null) {
+    return "Enter an amount.";
+  }
+
+  if (parsedQuantity < 0) {
+    return "Amount cannot be negative.";
+  }
+
+  if (parsedQuantity > item.availableQuantity) {
+    return "Amount cannot be greater than available pantry quantity.";
+  }
+
+  if (parsedQuantity > item.requiredQuantity) {
+    return "Amount cannot be greater than the recipe requirement.";
+  }
+
+  return null;
+}
+
+function buildCookPayload(items) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return items
+    .filter((item) => item.canConsume)
+    .filter((item) => getCookItemError(item) === null)
+    .map((item) => ({
+      ingredientName: item.ingredientName,
+      pantryItemId: item.pantryItemId,
+      quantity: parseCookQuantity(item.useQuantity),
+      unit: item.requiredUnit
+    }))
+    .filter((item) => item.quantity > 0);
 }
 
 const styles = StyleSheet.create({
@@ -868,5 +1100,102 @@ const styles = StyleSheet.create({
     color: colors.ink,
     fontSize: 14,
     lineHeight: 21
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(16, 32, 51, 0.45)",
+    justifyContent: "flex-end"
+  },
+  modalCard: {
+    maxHeight: "82%",
+    backgroundColor: colors.card,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 24,
+    gap: 14
+  },
+  modalTitle: {
+    color: colors.ink,
+    fontSize: 20,
+    fontWeight: "800"
+  },
+  modalDescription: {
+    color: colors.slate,
+    fontSize: 14,
+    lineHeight: 20
+  },
+  modalLoadingBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 12
+  },
+  modalLoadingText: {
+    color: colors.slate,
+    fontSize: 14
+  },
+  modalScroll: {
+    maxHeight: 420
+  },
+  modalScrollContent: {
+    gap: 12,
+    paddingBottom: 6
+  },
+  previewCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.paper,
+    padding: 14,
+    gap: 8
+  },
+  previewIngredientName: {
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "800"
+  },
+  previewMetaText: {
+    color: colors.slate,
+    fontSize: 13,
+    lineHeight: 18
+  },
+  previewInput: {
+    minHeight: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: "#ffffff",
+    paddingHorizontal: 14,
+    color: colors.ink,
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  previewInputDisabled: {
+    backgroundColor: colors.paper,
+    color: colors.slate
+  },
+  previewInputError: {
+    borderColor: colors.tomato
+  },
+  previewReason: {
+    color: colors.slate,
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  previewError: {
+    color: colors.tomato,
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  modalError: {
+    color: colors.tomato,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "600"
+  },
+  modalActionRow: {
+    gap: 10
   }
 });
